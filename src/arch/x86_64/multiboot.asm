@@ -1,4 +1,4 @@
-section .multiboot_header
+section .mbheader
 header_start:
 	dd 0xe85250d6														; Magic Number (Multiboot 2)
 	dd 0																; Architecture (x86)
