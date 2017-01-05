@@ -5,7 +5,7 @@ SECTIONS {
 
     .boot :
     {
-        *(.mbheader)
+        KEEP(*(.mbheader))
     }
 
     .text :

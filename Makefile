@@ -10,6 +10,9 @@ assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
 assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 
+target ?= $(arch)-unknown-linux-gnu
+os := target/$(target)/debug/libzinc_os.a
+
 .PHONY: all clean run iso
 
 all: $(kernel)
@@ -29,8 +32,12 @@ $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/iso 2> /dev/null
 	@rm -r build/iso
 
-$(kernel): $(assembly_object_files) $(linker_script)
-	@ld -n -T $(linker_script) -o $(kernel) $(assembly_object_files)
+$(kernel): cargo $(os) $(assembly_object_files) $(linker_script)
+	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(assembly_object_files) \
+		$(os)
+
+cargo:
+	@cargo build --target $(target)
 
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 	@mkdir -p $(shell dirname $@)

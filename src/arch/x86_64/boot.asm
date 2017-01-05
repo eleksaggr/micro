@@ -4,7 +4,6 @@ bits 32
 extern _start64
 
 section .text
-
 ; Check if the bootloader is Multiboot compliant. This will throw an error with code 1, if not compliant.
 _check_multiboot:
 	; Compare with the bootloader supplied magic number.
@@ -63,88 +62,94 @@ _check_long_mode:
 	jmp _error
 
 _setup_paging:
-; Clear the page tables
-._clear_tables:
-	; Start PDPT at 0x1000
-	mov edi, 0x1000
-	mov cr3, edi
-	xor eax, eax
-	mov ecx, 4096
-	rep stosd
-	mov edi, cr3
-	; Link the pages tables
-._setup_tables:
-	mov dword[edi], 0x2003
-	add edi, 0x1000
-	mov dword[edi], 0x3003
-	add edi, 0x1000
-	mov dword[edi], 0x4003
-	add edi, 0x1000
-._id_map:
-	mov ebx, 0x00000003
-	mov ecx, 512
-._set_entry:
-	mov dword[edi], ebx
-	add ebx, 0x1000
-	add edi, 8
-	loop _setup_paging._set_entry
-._enable_pae:
+	mov eax, p3_table
+	or eax, 0b11
+	mov [p4_table], eax
+
+	mov eax, p2_table
+	or eax, 0b11
+	mov [p3_table], eax
+
+	mov ecx, 0
+.map_p2_table:
+	mov eax, 0x200000
+	mul ecx
+	or eax, 0b10000011
+	mov [p2_table + ecx * 8], eax
+	
+	inc ecx
+	cmp ecx, 512
+	jne .map_p2_table
+
+	ret
+
+_enable_paging:
+	mov eax, p4_table
+	mov cr3, eax
+
 	mov eax, cr4
 	or eax, 1 << 5
 	mov cr4, eax
-	ret
 
-_enable_long_mode:
 	mov ecx, 0xC0000080
 	rdmsr
 	or eax, 1 << 8
 	wrmsr
+
 	mov eax, cr0
 	or eax, 1 << 31
 	mov cr0, eax
+
 	ret
 
-GDT64:
-	.Null: equ $ - GDT64
-	dw 0
-	dw 0
-	db 0
-	db 0
-	db 0
-	db 0
-	.Code: equ $ - GDT64
-	dw 0
-	dw 0
-	db 0
-	db 0x9A
-	db 0x20
-	db 0
-	.Data: equ $ - GDT64
-	dw 0
-	dw 0
-	db 0
-	db 0x92
-	db 0x00
-	db 0
-	.Pointer:
-	dw $ - GDT64 - 1
-	dq GDT64
+_setup_SSE:
+	mov eax, 0x1
+	cpuid
+	test edx, 1<<25
+	jz .NoSSE
+
+	; Enable SSE
+	mov eax, cr0
+	and ax, 0xFFFB
+	or ax, 0x2
+	mov cr0, eax
+	mov eax, cr4
+	or ax, 3 << 9
+	mov cr4, eax
+
+	ret
+.NoSSE:
+	mov al, "a"
+	jmp _error
 
 ; The kernel entry point.
 _start:
 	; Setup the stack pointer.
 	mov esp, stack_top 
 
+	; Move Multiboot pointer to EDI
+	mov edi, ebx
+
 	call _check_multiboot
 	call _check_cpuid
 	call _check_long_mode
 
 	call _setup_paging
-	call _enable_long_mode
-	
+	call _enable_paging
+
+	call _setup_SSE
+
 	lgdt [GDT64.Pointer]
+
+	; Update selectors
+	mov ax, 16
+	mov ss, ax
+	mov ds, ax
+	mov es, ax
+
 	jmp GDT64.Code:_start64
 
+	; Throw error 0, if we could not jump to 64-bit entry point.
 	mov al, "0"
 	jmp _error
 
@@ -155,9 +160,27 @@ _error:
 	mov  byte[0xb800A], al
 	hlt
 
+section .rodata
+; The Global Descriptor Table we use, once we are in 64-Bit mode.
+GDT64:
+	dq 0
+	.Code equ $ - GDT64
+	dq (1<<44) | (1<<47) | (1<<41) | (1<<43) | (1<<53)
+	.Data equ $ - GDT64
+	dq (1 << 44)  | (1<<47) | (1<<41)
+	.Pointer:
+	dw $ - GDT64 - 1
+	dq GDT64
+
 section .bss
-align 16
+align 4096
+p4_table:
+	resb 4096
+p3_table:
+	resb 4096
+p2_table:
+	resb 4096
 stack_bottom:
-	; Reserve 16KB for the stack.
-	resw 16384
+	; Reserve 4KB for the stack.
+	resb 4096
 stack_top:
