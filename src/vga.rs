@@ -76,6 +76,11 @@ pub fn clear_screen() {
     }
 }
 
+pub fn set_color(fg: Color, bg: Color) {
+    let mut writer = WRITER.lock();
+    writer.color = ColorCode::new(fg, bg);
+}
+
 pub struct Writer {
     column: usize,
     color: ColorCode,
@@ -107,7 +112,7 @@ impl Writer {
 
 
     fn buffer(&mut self) -> &mut Buffer {
-        unsafe { self.buffer.get_mut() }
+        unsafe { self.buffer.as_mut() }
     }
 
     fn shift(&mut self) {
