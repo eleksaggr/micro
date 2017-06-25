@@ -62,6 +62,8 @@ _check_long_mode:
 	jmp _error
 
 _setup_paging:
+
+        ; Recursively map the P4 table to its own last entry.
         mov eax, p4_table
         or eax, 0b11
         mov [p4_table + 511 * 8], eax
@@ -76,9 +78,9 @@ _setup_paging:
 
 	mov ecx, 0
 .map_p2_table:
-	mov eax, 0x200000
+	mov eax, 0x200000 ; 2MiB
 	mul ecx
-	or eax, 0b10000011
+	or eax, 0b10000011 ; Set Present, Writable and Huge
 	mov [p2_table + ecx * 8], eax
 	
 	inc ecx
