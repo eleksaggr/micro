@@ -1,5 +1,5 @@
-#![feature(allocator)]
 #![feature(const_fn)]
+#![feature(allocator)]
 
 #![allocator]
 #![no_std]
@@ -8,16 +8,46 @@ extern crate spin;
 
 use spin::Mutex;
 
+// #[no_mangle]
+// pub extern "C" fn __rust_allocate(size: usize, align: usize) -> *mut u8 {}
+
+// #[no_mangle]
+// pub extern "C" fn __rust_allocate_zeroed(size: usize, align: usize) -> *mut u8 {}
+
+// #[no_mangle]
+// pub extern "C" fn __rust_reallocate(
+//     ptr: *mut u8,
+//     old_size: usize,
+//     size: usize,
+//     align: usize,
+// ) -> *mut u8 {
+// }
+
+// #[no_mangle]
+// pub extern "C" fn __rust_reallocate_inplace(
+//     ptr: *mut u8,
+//     old_size: usize,
+//     size: usize,
+//     align: usize,
+// ) -> usize {
+// }
+
+// #[no_mangle]
+// pub extern "C" fn __rust_deallocate(ptr: *mut u8, size: usize, align: usize) {}
+
+// #[no_mangle]
+// pub extern "C" fn __rust_usable_size(size: usize, align: usize) -> usize {}
+
 pub const BASE: usize = 0x40000000;
 pub const SIZE: usize = 512 * 4000; // 4 * 2^7 KiB
 
-pub const BLOCK: usize = 4000; // KiB
-pub const MAX_ORDER: u8 = 7;
+const BLOCK_SIZE: usize = 4000; // KiB
+const MAX_ORDER: u8 = 7;
 
 static ALLOCATOR: Mutex<BuddyAllocator> = Mutex::new(BuddyAllocator::new());
 
 pub struct BuddyAllocator {
-    entries: [Entry; SIZE / BLOCK],
+    entries: [Entry; SIZE / BLOCK_SIZE],
 }
 
 impl BuddyAllocator {
@@ -27,7 +57,7 @@ impl BuddyAllocator {
                 order: MAX_ORDER,
                 left: false,
                 used: false,
-            }; SIZE / BLOCK],
+            }; SIZE / BLOCK_SIZE],
         }
     }
 
@@ -61,7 +91,7 @@ impl BuddyAllocator {
 
         unsafe {
             let base = BASE as *mut u32;
-            base.offset((next * BLOCK) as isize)
+            base.offset((next * BLOCK_SIZE) as isize)
         }
     }
 
@@ -72,7 +102,7 @@ impl BuddyAllocator {
             ptr as usize
         );
 
-        let index = (ptr as usize) - BASE / BLOCK;
+        let index = ((ptr as usize) - BASE) / BLOCK_SIZE;
         let order = self.entries[index].order;
         let left = self.entries[index].left;
 
@@ -111,6 +141,7 @@ impl BuddyAllocator {
         for i in 0..(1 << (order + 1)) {
             assert!(!self.entries[pos + i].used);
             self.entries[pos + i].order += 1;
+            self.entries[pos + i].left = false;
         }
     }
 
@@ -125,7 +156,7 @@ impl BuddyAllocator {
 
     fn order(size: usize) -> u8 {
         let mut i = 0;
-        while size > (BLOCK * (1 << i)) {
+        while size > (BLOCK_SIZE * (1 << i)) {
             i += 1;
         }
         i

@@ -67,17 +67,21 @@ pub extern "C" fn kmain(mb_addr: usize) {
 
     let mut test = Box::new(42);
     *test -= 15;
-    let test2 = Box::new("Hello");
-    println!("{:?} {:?}", test, test2);
+    // let test2 = Box::new("Hello");
+    // println!("{:?} {:?}", test, test2);
 
-    let mut vec = vec![1, 2, 3, 4, 5, 6, 7];
-    vec[3] = 42;
-    for i in &vec {
-        print!("{}", i);
-    }
+    // let mut vec = vec![1, 2, 3, 4, 5, 6, 7];
+    // vec[3] = 42;
+    // for i in &vec {
+    //     print!("{}", i);
+    // }
 
-    let mut test3 = Vec::with_capacity(10000);
-    test3.push(100);
+    // let mut test3 = Vec::with_capacity(10000);
+    // test3.push(100);
+
+    drop(test);
+    // drop(test3);
+    // drop(test2);
 
     panic!("Execution ended.");
 }
