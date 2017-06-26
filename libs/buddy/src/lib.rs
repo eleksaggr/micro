@@ -1,78 +1,51 @@
 #![feature(const_fn)]
+#![feature(associated_consts)]
 #![feature(allocator)]
 
 #![allocator]
 #![no_std]
 
 extern crate spin;
+#[macro_use]
+extern crate lazy_static;
 
 use spin::Mutex;
 
-// #[no_mangle]
-// pub extern "C" fn __rust_allocate(size: usize, align: usize) -> *mut u8 {}
-
-// #[no_mangle]
-// pub extern "C" fn __rust_allocate_zeroed(size: usize, align: usize) -> *mut u8 {}
-
-// #[no_mangle]
-// pub extern "C" fn __rust_reallocate(
-//     ptr: *mut u8,
-//     old_size: usize,
-//     size: usize,
-//     align: usize,
-// ) -> *mut u8 {
-// }
-
-// #[no_mangle]
-// pub extern "C" fn __rust_reallocate_inplace(
-//     ptr: *mut u8,
-//     old_size: usize,
-//     size: usize,
-//     align: usize,
-// ) -> usize {
-// }
-
-// #[no_mangle]
-// pub extern "C" fn __rust_deallocate(ptr: *mut u8, size: usize, align: usize) {}
-
-// #[no_mangle]
-// pub extern "C" fn __rust_usable_size(size: usize, align: usize) -> usize {}
-
 pub const BASE: usize = 0x40000000;
-pub const SIZE: usize = 512 * 4000; // 4 * 2^7 KiB
+pub const SIZE: usize = Block::SIZE * (1 << BuddyAllocator::ORDER);
 
-const BLOCK_SIZE: usize = 4000; // KiB
-const MAX_ORDER: u8 = 7;
-
-static ALLOCATOR: Mutex<BuddyAllocator> = Mutex::new(BuddyAllocator::new());
+lazy_static! {
+    static ref ALLOCATOR: Mutex<BuddyAllocator> = Mutex::new(BuddyAllocator::new());
+}
 
 pub struct BuddyAllocator {
-    entries: [Entry; SIZE / BLOCK_SIZE],
+    blocks: [Block; SIZE / Block::SIZE],
 }
 
 impl BuddyAllocator {
-    pub const fn new() -> BuddyAllocator {
+    const ORDER: u8 = 9;
+
+    pub fn new() -> Self {
         BuddyAllocator {
-            entries: [Entry {
-                order: MAX_ORDER,
-                left: false,
+            blocks: [Block {
+                order: BuddyAllocator::ORDER,
                 used: false,
-            }; SIZE / BLOCK_SIZE],
+            }; SIZE / Block::SIZE],
         }
     }
 
-    pub fn allocate(&mut self, size: usize) -> *mut u32 {
-        assert!(
-            size <= SIZE,
-            "Size exceeds maximum allocation unit of {}",
-            SIZE
-        );
+    pub fn allocate(&mut self, size: usize, align: usize) -> *mut u8 {
+        // Check if we can even fit the request on the heap.
+        assert!(size <= SIZE, "Request exceeds maximum allocation unit.");
+        assert!(align & (align - 1) == 0, "Alignment is off boundary.");
 
+        // Calculate the order of blocks we need and try to find a fit.
         let order = BuddyAllocator::order(size);
-        let next = self.next(order, 0).unwrap_or_else(|| {
-            for i in order..(MAX_ORDER + 1) {
-                let next = self.next(i, 0);
-                match next {
+        let index = self.fit(order).unwrap_or_else(|| {
+            // Search for a higher order block and split it if necessary.
+            for i in order..(BuddyAllocator::ORDER + 1) {
+                let opt = self.fit(i);
+                match opt {
                     Some(index) => {
                         for _ in 0..(i - order) {
                             self.split(index);
@@ -82,131 +55,188 @@ impl BuddyAllocator {
                     None => continue,
                 }
             }
-            panic!("Could not create a block for the allocation");
+            //TODO: This should not panic, but rather return an Err.
+            panic!("Could not fit request into current memory scheme.");
         });
 
-        for i in 0..(1 << order) {
-            self.entries[next + i].used = true;
-        }
+        // Mark all of the now reserved blocks as used.
+        self.set(index, order, true);
 
-        unsafe {
-            let base = BASE as *mut u32;
-            base.offset((next * BLOCK_SIZE) as isize)
-        }
+        // Return a pointer to the first of the reversed blocks.
+        unsafe { (BASE as *mut u8).offset((index * Block::SIZE) as isize) }
     }
 
-    pub fn deallocate(&mut self, ptr: *mut u32) {
+    pub fn deallocate(&mut self, ptr: *mut u8, size: usize, align: usize) {
         assert!(
-            (ptr as usize) >= BASE && (ptr as usize) <= BASE + SIZE,
-            "Pointer with address {:#x} does not point to the Heap",
-            ptr as usize
+            (ptr as usize) < BASE + SIZE && (ptr as usize) >= BASE,
+            "Could not deallocate pointer outside of the heap."
         );
+        let index = ((ptr as usize) - BASE) / Block::SIZE;
+        let order = self.blocks[index].order;
 
-        let index = ((ptr as usize) - BASE) / BLOCK_SIZE;
-        let order = self.entries[index].order;
-        let left = self.entries[index].left;
+        // Mark the blocks as now unused.
+        self.set(index, order, false);
 
-        for i in 0..(1 << order) {
-            self.entries[index + i].used = false;
-        }
-
-        if left {
-            if !self.entries[index + (1 << (order + 1))].used {
+        if self.is_left(index, order) {
+            // Check if the right block is used.
+            if !self.blocks[index + (1 << order)].used {
                 self.merge(index);
             }
         } else {
-            if !self.entries[index - (1 << (order + 1))].used {
-                self.merge(index - (1 << (order + 1)));
+            // Check if the left block is used.
+            if !self.blocks[index - (1 << order)].used {
+                self.merge(index - (1 << order));
             }
         }
     }
 
-    fn split(&mut self, pos: usize) {
-        let order = self.entries[pos].order;
-
-        for i in 0..(1 << order) {
-            if i < (1 << order) / 2 || ((order == 0) && i == 0) {
-                self.entries[pos + i].left = true;
-            } else {
-                self.entries[pos + i].left = false;
+    pub fn zero(ptr: *mut u8, size: usize) {
+        let mut p = ptr;
+        for _ in 0..size {
+            unsafe {
+                *p = 0;
+                p = ptr.offset(1);
             }
-            assert!(!self.entries[pos + i].used);
-            self.entries[pos + i].order -= 1;
         }
     }
 
-    fn merge(&mut self, pos: usize) {
-        let order = self.entries[pos].order;
-
-        for i in 0..(1 << (order + 1)) {
-            assert!(!self.entries[pos + i].used);
-            self.entries[pos + i].order += 1;
-            self.entries[pos + i].left = false;
+    fn order(size: usize) -> u8 {
+        let mut i = 0;
+        while size > (Block::SIZE * (1 << i)) {
+            i += 1;
         }
+        i
     }
 
-    fn next(&self, order: u8, pos: usize) -> Option<usize> {
-        for (i, entry) in self.entries.iter().enumerate().skip(pos) {
-            if entry.order == order && !entry.used {
+    fn fit(&self, order: u8) -> Option<usize> {
+        assert!(
+            order <= BuddyAllocator::ORDER,
+            "Order exceeds the maximum order of the allocator."
+        );
+        for (i, block) in self.blocks.iter().enumerate() {
+            if order == block.order && !block.used {
                 return Some(i);
             }
         }
         None
     }
 
-    fn order(size: usize) -> u8 {
-        let mut i = 0;
-        while size > (BLOCK_SIZE * (1 << i)) {
-            i += 1;
+    fn split(&mut self, index: usize) {
+        let order = self.blocks[index].order;
+        assert!(
+            index % (1 << order) == 0,
+            "Index is not properly aligned for its order."
+        );
+
+        for i in 0..(1 << order) {
+            assert!(
+                !self.blocks[index + i].used,
+                "Unable to split a block currently in use."
+            );
+            self.blocks[index + i].order -= 1;
         }
-        i
+    }
+
+    fn merge(&mut self, index: usize) {
+        let order = self.blocks[index].order;
+        assert!(
+            index % (1 << order) == 0,
+            "Index is not properly aligned for its order."
+        );
+
+        for i in 0..(1 << (order + 1)) {
+            assert!(
+                !self.blocks[index + i].used,
+                "Unable to merge two blocks currently in use."
+            );
+            self.blocks[index + i].order += 1;
+        }
+
+        if order + 1 != BuddyAllocator::ORDER {
+            // We are left per definition.
+            if !self.blocks[index + (1 << (order + 1))].used {
+                self.merge(index);
+            }
+
+        }
+    }
+
+    fn is_left(&self, index: usize, order: u8) -> bool {
+        assert!(
+            order <= BuddyAllocator::ORDER,
+            "Order exceeds the maximum order of the allocator."
+        );
+
+        assert!(
+            index % (1 << order) == 0,
+            "Index is not properly aligned for its order."
+        );
+
+        index % (2 * (1 << order)) == 0
+    }
+
+    fn set(&mut self, index: usize, order: u8, used: bool) {
+        assert!(
+            order <= BuddyAllocator::ORDER,
+            "Order exceeds the maximum order of the allocator."
+        );
+
+        for i in 0..(1 << order) {
+            self.blocks[index + i].used = used;
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Entry {
+pub struct Block {
     order: u8,
-    left: bool,
     used: bool,
 }
 
-#[no_mangle]
-pub extern "C" fn __rust_allocate(size: usize, _: usize) -> *mut u32 {
-    ALLOCATOR.lock().allocate(size)
+impl Block {
+    pub const SIZE: usize = 4000; // 4KiB
 }
 
 #[no_mangle]
-pub extern "C" fn __rust_allocate_zeroed(size: usize, _: usize) -> *mut u32 {
-    //TODO: This lies to the user.
-    ALLOCATOR.lock().allocate(size)
+pub extern "C" fn __rust_allocate(size: usize, align: usize) -> *mut u8 {
+    ALLOCATOR.lock().allocate(size, align)
 }
 
 #[no_mangle]
-pub extern "C" fn __rust_deallocate(ptr: *mut u32, size: usize, _: usize) {
-    ALLOCATOR.lock().deallocate(ptr);
+pub extern "C" fn __rust_allocate_zeroed(size: usize, align: usize) -> *mut u8 {
+    let ptr = ALLOCATOR.lock().allocate(size, align);
+    BuddyAllocator::zero(ptr, size);
+    ptr
 }
 
 #[no_mangle]
-pub extern "C" fn __rust_usable_size(size: usize, _: usize) -> usize {
-    size
+pub extern "C" fn __rust_reallocate(
+    ptr: *mut u8,
+    old_size: usize,
+    size: usize,
+    align: usize,
+) -> *mut u8 {
+    let new_ptr = ALLOCATOR.lock().allocate(size, align);
+    ALLOCATOR.lock().deallocate(ptr, old_size, align);
+    new_ptr
 }
 
 #[no_mangle]
 pub extern "C" fn __rust_reallocate_inplace(
-    ptr: *mut u32,
+    ptr: *mut u8,
+    old_size: usize,
     size: usize,
-    new: usize,
     align: usize,
 ) -> usize {
     size
 }
 
 #[no_mangle]
-pub extern "C" fn __rust_reallocate(ptr: *mut u32, size: usize, new: usize, _: usize) -> *mut u32 {
-    use core::{cmp, ptr};
+pub extern "C" fn __rust_deallocate(ptr: *mut u8, size: usize, align: usize) {
+    ALLOCATOR.lock().deallocate(ptr, size, align);
+}
 
-    let new_ptr = __rust_allocate(new, 0);
-    unsafe { ptr::copy(ptr, new_ptr, cmp::min(size, new)) };
-    __rust_deallocate(ptr, size, 0);
-    new_ptr
+#[no_mangle]
+pub extern "C" fn __rust_usable_size(size: usize, align: usize) -> usize {
+    size
 }
