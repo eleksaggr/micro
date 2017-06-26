@@ -1,6 +1,6 @@
 use core::ptr::Unique;
 use super::Page;
-use super::table::{self, Flags, Table, Level4, Level1, PRESENT, WRITABLE, P4};
+use super::table::{Flags, Table, Level4, PRESENT, P4};
 use memory::{Frame, FrameAllocator};
 
 pub struct Mapper {
@@ -12,9 +12,9 @@ impl Mapper {
         Mapper { p4: Unique::new(P4) }
     }
 
-    pub fn get(&self) -> &Table<Level4> {
-        unsafe { self.p4.as_ref() }
-    }
+    // pub fn get(&self) -> &Table<Level4> {
+    //     unsafe { self.p4.as_ref() }
+    // }
 
     pub fn get_mut(&mut self) -> &mut Table<Level4> {
         unsafe { self.p4.as_mut() }
@@ -66,7 +66,7 @@ impl Mapper {
     }
 
 
-    pub fn unmap<A>(&mut self, page: Page, allocator: &mut A)
+    pub fn unmap<A>(&mut self, page: Page, _: &mut A)
     where
         A: FrameAllocator,
     {
@@ -78,7 +78,7 @@ impl Mapper {
             .and_then(|p2| p2.next_mut(page.p2_index()))
             .expect("Mapping code does not support huge pages");
 
-        let frame = p1[page.p1_index()].frame().unwrap();
+        //let frame = p1[page.p1_index()].frame().unwrap();
         p1[page.p1_index()].free();
 
         use x86_64::instructions::tlb;

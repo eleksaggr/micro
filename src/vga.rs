@@ -50,7 +50,7 @@ struct Buffer {
 
 pub static WRITER: Mutex<Writer> = Mutex::new(Writer {
     column: 0,
-    color: ColorCode::new(Color::LightGreen, Color::Black),
+    color: ColorCode::new(Color::White, Color::Black),
     buffer: unsafe { Unique::new(0xb8000 as *mut _) },
 });
 
@@ -70,16 +70,16 @@ pub fn print(args: fmt::Arguments) {
     WRITER.lock().write_fmt(args).unwrap();
 }
 
-pub fn clear_screen() {
-    for _ in 0..BUFFER_HEIGHT {
-        println!("");
-    }
-}
+// pub fn clear_screen() {
+//     for _ in 0..BUFFER_HEIGHT {
+//         println!("");
+//     }
+// }
 
-pub fn set_color(fg: Color, bg: Color) {
-    let mut writer = WRITER.lock();
-    writer.color = ColorCode::new(fg, bg);
-}
+// pub fn set_color(fg: Color, bg: Color) {
+//     let mut writer = WRITER.lock();
+//     writer.color = ColorCode::new(fg, bg);
+// }
 
 pub struct Writer {
     column: usize,

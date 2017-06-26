@@ -19,16 +19,16 @@ pub struct Frame {
 impl Frame {
     const SIZE: usize = 4096;
 
+    fn base_addr(&self) -> usize {
+        self.id * Frame::SIZE
+    }
+
     fn clone(&self) -> Frame {
         Frame { id: self.id }
     }
 
     fn containing(address: usize) -> Self {
         Frame { id: address / Frame::SIZE }
-    }
-
-    fn base_addr(&self) -> usize {
-        self.id * Frame::SIZE
     }
 
     fn range(start: Frame, end: Frame) -> FrameIter {
@@ -47,7 +47,7 @@ struct FrameIter {
 impl Iterator for FrameIter {
     type Item = Frame;
 
-    fn next(&mut self) -> Option<Frame> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.start <= self.end {
             let frame = self.start.clone();
             self.start.id += 1;
@@ -75,16 +75,16 @@ pub fn init(info: &BootInformation) {
         .max()
         .unwrap();
 
-    println!(
-        "Kernel Start: {:#x}, Kernel End: {:#x}",
-        kernel_start,
-        kernel_end
-    );
-    println!(
-        "Multiboot Start: {:#x}, Multiboot End: {:#x}",
-        info.start_address(),
-        info.end_address()
-    );
+    // println!(
+    //     "Kernel Start: {:#x}, Kernel End: {:#x}",
+    //     kernel_start,
+    //     kernel_end
+    // );
+    // println!(
+    //     "Multiboot Start: {:#x}, Multiboot End: {:#x}",
+    //     info.start_address(),
+    //     info.end_address()
+    // );
 
     let mut allocator = AreaFrameAllocator::new(
         mmtag.memory_areas(),
@@ -100,13 +100,12 @@ pub fn init(info: &BootInformation) {
     use buddy::{BASE, SIZE};
 
     let heap_start_page = Page::containing(BASE);
-    println!(
-        "Page containing heap base at {:#x}",
-        heap_start_page.base_addr()
-    );
+    // println!(
+    //     "Page containing heap base at {:#x}",
+    //     heap_start_page.base_addr()
+    // );
     let heap_end_page = Page::containing(BASE + SIZE - 1);
-    println!("Page containg heap end at {:#x}", heap_end_page.base_addr());
-
+    // println!("Page containg heap end at {:#x}", heap_end_page.base_addr());
     for page in Page::range(heap_start_page, heap_end_page) {
         table.map(page, paging::WRITABLE, &mut allocator);
     }

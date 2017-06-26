@@ -93,11 +93,11 @@ where
                 section.start_address() % Page::SIZE == 0,
                 "Sections need to be aligned"
             );
-            println!(
-                "Mapping section at Address: {:#x}, Size: {:#x}",
-                section.addr,
-                section.size
-            );
+            // println!(
+            //     "Mapping section at Address: {:#x}, Size: {:#x}",
+            //     section.addr,
+            //     section.size
+            // );
 
             let flags = Flags::from_elf(section);
 
@@ -123,7 +123,7 @@ where
 
     let old_p4 = Page::containing(old.frame.base_addr());
     table.unmap(old_p4, allocator);
-    println!("Guard page at {:#x}", old_p4.base_addr());
+    //println!("Guard page at {:#x}", old_p4.base_addr());
 
     table
 }
