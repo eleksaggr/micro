@@ -1,5 +1,5 @@
 use multiboot2::BootInformation;
-use memory::{Frame, FrameAllocator};
+use memory::frame::{self, Frame};
 use memory::paging::table::{ActiveTable, Flags, InactiveTable, TempPage, PRESENT};
 
 pub use self::mapper::Mapper;
@@ -71,7 +71,7 @@ impl Iterator for PageIter {
 
 pub fn remap_kernel<A>(allocator: &mut A, info: &BootInformation) -> ActiveTable
 where
-    A: FrameAllocator,
+    A: frame::Allocator,
 {
     let mut temp = TempPage::new(Page { id: 0xdeadaffe }, allocator);
 

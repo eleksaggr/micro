@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut, Index, IndexMut};
-use memory::Frame;
-use memory::FrameAllocator;
+use memory::frame::{self, Frame};
 use memory::paging::Page;
 use memory::paging::mapper::Mapper;
 use multiboot2::ElfSection;
@@ -73,7 +72,7 @@ where
 
     pub fn next_or_create<A>(&mut self, index: usize, allocator: &mut A) -> &mut Table<L::Next>
     where
-        A: FrameAllocator,
+        A: frame::Allocator,
     {
         if self.next(index).is_none() {
             assert!(
@@ -267,7 +266,7 @@ pub struct TempPage {
 impl TempPage {
     pub fn new<A>(page: Page, allocator: &mut A) -> TempPage
     where
-        A: FrameAllocator,
+        A: frame::Allocator,
     {
         TempPage {
             page: page,
@@ -294,7 +293,7 @@ struct TinyAllocator([Option<Frame>; 3]);
 impl TinyAllocator {
     fn new<A>(allocator: &mut A) -> TinyAllocator
     where
-        A: FrameAllocator,
+        A: frame::Allocator,
     {
         let mut f = || allocator.allocate();
         let frames = [f(), f(), f()];
@@ -302,7 +301,7 @@ impl TinyAllocator {
     }
 }
 
-impl FrameAllocator for TinyAllocator {
+impl frame::Allocator for TinyAllocator {
     fn allocate(&mut self) -> Option<Frame> {
         for option in &mut self.0 {
             if option.is_some() {

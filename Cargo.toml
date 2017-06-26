@@ -6,7 +6,6 @@ version = "0.1.0"
 [dependencies]
 bitflags = "0.7.0"
 multiboot2 = "0.3.2"
-once = "0.3.2"
 rlibc = "0.1.4"
 spin = "0.3.4"
 volatile = "0.1.0"

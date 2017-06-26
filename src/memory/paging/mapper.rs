@@ -1,7 +1,7 @@
 use core::ptr::Unique;
 use super::Page;
 use super::table::{Flags, Table, Level4, PRESENT, P4};
-use memory::{Frame, FrameAllocator};
+use memory::frame::{self, Frame};
 
 pub struct Mapper {
     p4: Unique<Table<Level4>>,
@@ -39,7 +39,7 @@ impl Mapper {
 
     pub fn map<A>(&mut self, page: Page, flags: Flags, allocator: &mut A)
     where
-        A: FrameAllocator,
+        A: frame::Allocator,
     {
         let frame = allocator.allocate().expect("Out of memory");
         self.map_to(page, frame, flags, allocator)
@@ -47,7 +47,7 @@ impl Mapper {
 
     pub fn map_to<A>(&mut self, page: Page, frame: Frame, flags: Flags, allocator: &mut A)
     where
-        A: FrameAllocator,
+        A: frame::Allocator,
     {
         let mut p3 = self.get_mut().next_or_create(page.p4_index(), allocator);
         let mut p2 = p3.next_or_create(page.p3_index(), allocator);
@@ -59,7 +59,7 @@ impl Mapper {
 
     pub fn map_id<A>(&mut self, frame: Frame, flags: Flags, allocator: &mut A)
     where
-        A: FrameAllocator,
+        A: frame::Allocator,
     {
         let page = Page::containing(frame.base_addr());
         self.map_to(page, frame, flags, allocator)
@@ -68,7 +68,7 @@ impl Mapper {
 
     pub fn unmap<A>(&mut self, page: Page, _: &mut A)
     where
-        A: FrameAllocator,
+        A: frame::Allocator,
     {
         assert!(self.translate(page.base_addr()).is_some());
 

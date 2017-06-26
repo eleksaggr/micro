@@ -1,62 +1,61 @@
-pub use memory::area::AreaFrameAllocator;
 pub use memory::paging::remap_kernel;
 
 use multiboot2::BootInformation;
 
-mod area;
+mod frame;
 mod paging;
 
-pub trait FrameAllocator {
-    fn allocate(&mut self) -> Option<Frame>;
-    fn deallocate(&mut self, frame: Frame);
-}
+// pub trait FrameAllocator {
+//     fn allocate(&mut self) -> Option<Frame>;
+//     fn deallocate(&mut self, frame: Frame);
+// }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Frame {
-    id: usize,
-}
+// #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+// pub struct Frame {
+//     id: usize,
+// }
 
-impl Frame {
-    const SIZE: usize = 4096;
+// impl Frame {
+//     const SIZE: usize = 4096;
 
-    fn base_addr(&self) -> usize {
-        self.id * Frame::SIZE
-    }
+//     fn base_addr(&self) -> usize {
+//         self.id * Frame::SIZE
+//     }
 
-    fn clone(&self) -> Frame {
-        Frame { id: self.id }
-    }
+//     fn clone(&self) -> Frame {
+//         Frame { id: self.id }
+//     }
 
-    fn containing(address: usize) -> Self {
-        Frame { id: address / Frame::SIZE }
-    }
+//     fn containing(address: usize) -> Self {
+//         Frame { id: address / Frame::SIZE }
+//     }
 
-    fn range(start: Frame, end: Frame) -> FrameIter {
-        FrameIter {
-            start: start,
-            end: end,
-        }
-    }
-}
+//     fn range(start: Frame, end: Frame) -> FrameIter {
+//         FrameIter {
+//             start: start,
+//             end: end,
+//         }
+//     }
+// }
 
-struct FrameIter {
-    start: Frame,
-    end: Frame,
-}
+// struct FrameIter {
+//     start: Frame,
+//     end: Frame,
+// }
 
-impl Iterator for FrameIter {
-    type Item = Frame;
+// impl Iterator for FrameIter {
+//     type Item = Frame;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.start <= self.end {
-            let frame = self.start.clone();
-            self.start.id += 1;
-            Some(frame)
-        } else {
-            None
-        }
-    }
-}
+//     fn next(&mut self) -> Option<Self::Item> {
+//         if self.start <= self.end {
+//             let frame = self.start.clone();
+//             self.start.id += 1;
+//             Some(frame)
+//         } else {
+//             None
+//         }
+//     }
+// }
 
 pub fn init(info: &BootInformation) {
     let mmtag = info.memory_map_tag().expect("Memory Map Tag required");
