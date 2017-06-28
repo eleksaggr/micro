@@ -35,6 +35,14 @@ impl Frame {
         self.id
     }
 
+    pub fn zero(&self) {
+        for i in 0..Frame::SIZE {
+            unsafe {
+                *((self.base() + i) as *mut u8) = 0;
+            }
+        }
+    }
+
     pub fn range(start: Frame, end: Frame) -> FrameIter {
         FrameIter {
             start: start,
