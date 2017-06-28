@@ -1,6 +1,6 @@
 use super::Frame;
 
-mod bitmap;
+pub mod bitmap;
 
 pub trait Allocator {
     fn allocate(&mut self) -> Option<Frame>;

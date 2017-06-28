@@ -7,12 +7,14 @@ pub struct BitmapAllocator {
 
 impl BitmapAllocator {
     pub const BASE: usize = 0x2000000;
-    pub unsafe fn new(size: usize, areas: MemoryAreaIter) -> BitmapAllocator {
+    pub fn new(size: usize, areas: MemoryAreaIter) -> BitmapAllocator {
         // Figure out how many bitmaps we need to store, to address the whole memory.
         let n = size / (Frame::SIZE * 64);
-        for i in 0..n {
+        for i in 0..(n + 1) {
             // Mark all frames in the i-th bitmap as unused.
-            *((BitmapAllocator::BASE + i * 8) as *mut u64) = 0x0;
+            unsafe {
+                *((BitmapAllocator::BASE + i * 8) as *mut u64) = 0x0;
+            }
         }
 
         // Set the bitmaps according to which frames are already used by the kernel and the
@@ -36,10 +38,8 @@ impl BitmapAllocator {
             // Find the offset of the frame in the bitmap.
             let offset = (p % (Frame::SIZE * 64)) / Frame::SIZE;
             // If this assert fails, the above offset code is probably broken.
-            assert!(
-                (p % (Frame::SIZE * 64)) % Frame::SIZE == 0,
-                "Address was not aligned to frame."
-            );
+            assert!((p % (Frame::SIZE * 64)) % Frame::SIZE == 0,
+                    "Address was not aligned to frame.");
 
             BitmapAllocator::set(index, offset);
         }
@@ -71,7 +71,7 @@ impl BitmapAllocator {
                 let bitmap = *((BitmapAllocator::BASE + i * 8) as *mut u64);
                 for j in 0..64 {
                     if bitmap & (1 << j) == 0 {
-                        return Some(Frame { id: index * 64 + j });
+                        return Some(Frame { id: i * 64 + j });
                     }
                 }
             }

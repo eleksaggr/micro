@@ -17,11 +17,9 @@ impl Page {
     const SIZE: usize = 4096;
 
     pub fn containing(addr: usize) -> Page {
-        assert!(
-            addr < 0x0000_8000_0000_0000 || addr >= 0xffff_8000_0000_0000,
-            "Invalid Address: 0x{:x}",
-            addr
-        );
+        assert!(addr < 0x0000_8000_0000_0000 || addr >= 0xffff_8000_0000_0000,
+                "Invalid Address: 0x{:x}",
+                addr);
         Page { id: addr / Page::SIZE }
     }
 
@@ -70,8 +68,7 @@ impl Iterator for PageIter {
 }
 
 pub fn remap_kernel<A>(allocator: &mut A, info: &BootInformation) -> ActiveTable
-where
-    A: frame::Allocator,
+    where A: frame::Allocator
 {
     let mut temp = TempPage::new(Page { id: 0xdeadaffe }, allocator);
 
@@ -89,10 +86,8 @@ where
                 continue;
             }
 
-            assert!(
-                section.start_address() % Page::SIZE == 0,
-                "Sections need to be aligned"
-            );
+            assert!(section.start_address() % Page::SIZE == 0,
+                    "Sections need to be aligned");
             // println!(
             //     "Mapping section at Address: {:#x}, Size: {:#x}",
             //     section.addr,
@@ -121,9 +116,9 @@ where
 
     let old = table.switch(new);
 
-    let old_p4 = Page::containing(old.frame.base_addr());
+    let old_p4 = Page::containing(old.frame.base());
     table.unmap(old_p4, allocator);
-    //println!("Guard page at {:#x}", old_p4.base_addr());
+    // println!("Guard page at {:#x}", old_p4.base_addr());
 
     table
 }

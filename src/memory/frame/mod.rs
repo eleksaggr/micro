@@ -1,10 +1,11 @@
 pub use self::allocator::Allocator;
+pub use self::allocator::bitmap::BitmapAllocator;
 
 use core::iter::Iterator;
 
 mod allocator;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Frame {
     id: usize,
 }
@@ -24,6 +25,14 @@ impl Frame {
     /// Returns the first address of the memory space the Frame represents.
     pub fn base(&self) -> usize {
         self.id * Frame::SIZE
+    }
+
+    pub fn clone(&self) -> Frame {
+        Frame { id: self.id }
+    }
+
+    pub fn id(&self) -> usize {
+        self.id
     }
 
     pub fn range(start: Frame, end: Frame) -> FrameIter {
