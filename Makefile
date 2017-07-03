@@ -13,6 +13,8 @@ assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 target ?= $(arch)-unknown-linux-gnu
 os := target/$(target)/debug/libzinc_os.a
 
+qemu_debug := qemu.log
+
 .PHONY: all clean run iso
 
 all: $(kernel)
@@ -26,7 +28,8 @@ run: $(iso)
 debug: $(iso)
 	@qemu-system-x86_64 -d int -no-reboot -cdrom $(iso) -s -S
 
-gdb:
+gdb: $(iso)
+	@qemu-system-x86_64 -d int -no-reboot -cdrom $(iso) -s -S &> $(qemu_debug) &
 	@rust-gdb "build/kernel-x86_64.bin" -ex "target remote localhost:1234"
 
 iso: $(iso)
