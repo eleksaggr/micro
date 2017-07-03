@@ -16,8 +16,7 @@ pub struct Table<L: Level> {
 }
 
 impl<L> Table<L>
-where
-    L: Level,
+    where L: Level
 {
     pub fn reset(&mut self) {
         for entry in self.entries.iter_mut() {
@@ -27,8 +26,7 @@ where
 }
 
 impl<L> Index<usize> for Table<L>
-where
-    L: Level,
+    where L: Level
 {
     type Output = Entry;
 
@@ -38,8 +36,7 @@ where
 }
 
 impl<L> IndexMut<usize> for Table<L>
-where
-    L: Level,
+    where L: Level
 {
     fn index_mut(&mut self, index: usize) -> &mut Entry {
         &mut self.entries[index]
@@ -47,8 +44,7 @@ where
 }
 
 impl<L> Table<L>
-where
-    L: IterableLevel,
+    where L: IterableLevel
 {
     pub fn next(&self, index: usize) -> Option<&Table<L::Next>> {
         self.next_addr(index)
@@ -62,7 +58,6 @@ where
 
     fn next_addr(&self, index: usize) -> Option<usize> {
         let flags = self[index].flags();
-        println!("Index {} has flags {:?}", index, flags);
         if flags.contains(PRESENT) && !(flags.contains(HUGE)) {
             let addr = self as *const _ as usize;
             Some((addr << 9) | (index << 12))
@@ -72,14 +67,11 @@ where
     }
 
     pub fn next_or_create<A>(&mut self, index: usize, allocator: &mut A) -> &mut Table<L::Next>
-    where
-        A: frame::Allocator,
+        where A: frame::Allocator
     {
         if self.next(index).is_none() {
-            assert!(
-                !self.entries[index].flags().contains(HUGE),
-                "Mapping code does not support huge pages"
-            );
+            assert!(!self.entries[index].flags().contains(HUGE),
+                    "Mapping code does not support huge pages");
             let frame = allocator.allocate().expect("No frames available");
             self.entries[index].set(frame, PRESENT | WRITABLE);
             self.next_mut(index).unwrap().reset();
@@ -205,8 +197,7 @@ impl ActiveTable {
     }
 
     pub fn with<F>(&mut self, table: &mut InactiveTable, page: &mut TempPage, f: F)
-    where
-        F: FnOnce(&mut Mapper),
+        where F: FnOnce(&mut Mapper)
     {
         use x86_64::instructions::tlb;
         use x86_64::registers::control_regs;
@@ -248,12 +239,9 @@ pub struct InactiveTable {
 impl InactiveTable {
     pub fn new(frame: Frame, table: &mut ActiveTable, page: &mut TempPage) -> InactiveTable {
         {
-            println!("Creating inactive table...");
             let table = page.map_table(frame.clone(), table);
-            println!("Resetting table...");
             table.reset();
 
-            println!("Recursively mapping table...");
             table[511].set(frame.clone(), PRESENT | WRITABLE);
         }
         page.unmap(table);
@@ -269,8 +257,7 @@ pub struct TempPage {
 
 impl TempPage {
     pub fn new<A>(page: Page, allocator: &mut A) -> TempPage
-    where
-        A: frame::Allocator,
+        where A: frame::Allocator
     {
         TempPage {
             page: page,
@@ -284,7 +271,6 @@ impl TempPage {
     }
 
     pub fn map_table(&mut self, frame: Frame, table: &mut ActiveTable) -> &mut Table<Level1> {
-        println!("Mapping table...");
         unsafe { &mut *(self.map(frame, table) as *mut Table<Level1>) }
     }
 
@@ -297,12 +283,11 @@ struct TinyAllocator([Option<Frame>; 3]);
 
 impl TinyAllocator {
     fn new<A>(allocator: &mut A) -> TinyAllocator
-    where
-        A: frame::Allocator,
+        where A: frame::Allocator
     {
         let mut f = || allocator.allocate();
+
         let frames = [f(), f(), f()];
-        println!("Frames: {:?}", frames);
         TinyAllocator(frames)
     }
 }

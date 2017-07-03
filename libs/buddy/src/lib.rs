@@ -11,7 +11,7 @@ extern crate lazy_static;
 
 use spin::Mutex;
 
-pub const BASE: usize = 0x40000000;
+pub const BASE: usize = 0x4000000;
 pub const SIZE: usize = Block::SIZE * (1 << BuddyAllocator::ORDER);
 
 lazy_static! {
@@ -55,7 +55,7 @@ impl BuddyAllocator {
                     None => continue,
                 }
             }
-            //TODO: This should not panic, but rather return an Err.
+            // TODO: This should not panic, but rather return an Err.
             panic!("Could not fit request into current memory scheme.");
         });
 
@@ -67,10 +67,8 @@ impl BuddyAllocator {
     }
 
     pub fn deallocate(&mut self, ptr: *mut u8, size: usize, align: usize) {
-        assert!(
-            (ptr as usize) < BASE + SIZE && (ptr as usize) >= BASE,
-            "Could not deallocate pointer outside of the heap."
-        );
+        assert!((ptr as usize) < BASE + SIZE && (ptr as usize) >= BASE,
+                "Could not deallocate pointer outside of the heap.");
         let index = ((ptr as usize) - BASE) / Block::SIZE;
         let order = self.blocks[index].order;
 
@@ -109,10 +107,8 @@ impl BuddyAllocator {
     }
 
     fn fit(&self, order: u8) -> Option<usize> {
-        assert!(
-            order <= BuddyAllocator::ORDER,
-            "Order exceeds the maximum order of the allocator."
-        );
+        assert!(order <= BuddyAllocator::ORDER,
+                "Order exceeds the maximum order of the allocator.");
         for (i, block) in self.blocks.iter().enumerate() {
             if order == block.order && !block.used {
                 return Some(i);
@@ -123,32 +119,24 @@ impl BuddyAllocator {
 
     fn split(&mut self, index: usize) {
         let order = self.blocks[index].order;
-        assert!(
-            index % (1 << order) == 0,
-            "Index is not properly aligned for its order."
-        );
+        assert!(index % (1 << order) == 0,
+                "Index is not properly aligned for its order.");
 
         for i in 0..(1 << order) {
-            assert!(
-                !self.blocks[index + i].used,
-                "Unable to split a block currently in use."
-            );
+            assert!(!self.blocks[index + i].used,
+                    "Unable to split a block currently in use.");
             self.blocks[index + i].order -= 1;
         }
     }
 
     fn merge(&mut self, index: usize) {
         let order = self.blocks[index].order;
-        assert!(
-            index % (1 << order) == 0,
-            "Index is not properly aligned for its order."
-        );
+        assert!(index % (1 << order) == 0,
+                "Index is not properly aligned for its order.");
 
         for i in 0..(1 << (order + 1)) {
-            assert!(
-                !self.blocks[index + i].used,
-                "Unable to merge two blocks currently in use."
-            );
+            assert!(!self.blocks[index + i].used,
+                    "Unable to merge two blocks currently in use.");
             self.blocks[index + i].order += 1;
         }
 
@@ -162,24 +150,18 @@ impl BuddyAllocator {
     }
 
     fn is_left(&self, index: usize, order: u8) -> bool {
-        assert!(
-            order <= BuddyAllocator::ORDER,
-            "Order exceeds the maximum order of the allocator."
-        );
+        assert!(order <= BuddyAllocator::ORDER,
+                "Order exceeds the maximum order of the allocator.");
 
-        assert!(
-            index % (1 << order) == 0,
-            "Index is not properly aligned for its order."
-        );
+        assert!(index % (1 << order) == 0,
+                "Index is not properly aligned for its order.");
 
         index % (2 * (1 << order)) == 0
     }
 
     fn set(&mut self, index: usize, order: u8, used: bool) {
-        assert!(
-            order <= BuddyAllocator::ORDER,
-            "Order exceeds the maximum order of the allocator."
-        );
+        assert!(order <= BuddyAllocator::ORDER,
+                "Order exceeds the maximum order of the allocator.");
 
         for i in 0..(1 << order) {
             self.blocks[index + i].used = used;
@@ -210,24 +192,22 @@ pub extern "C" fn __rust_allocate_zeroed(size: usize, align: usize) -> *mut u8 {
 }
 
 #[no_mangle]
-pub extern "C" fn __rust_reallocate(
-    ptr: *mut u8,
-    old_size: usize,
-    size: usize,
-    align: usize,
-) -> *mut u8 {
+pub extern "C" fn __rust_reallocate(ptr: *mut u8,
+                                    old_size: usize,
+                                    size: usize,
+                                    align: usize)
+                                    -> *mut u8 {
     let new_ptr = ALLOCATOR.lock().allocate(size, align);
     ALLOCATOR.lock().deallocate(ptr, old_size, align);
     new_ptr
 }
 
 #[no_mangle]
-pub extern "C" fn __rust_reallocate_inplace(
-    ptr: *mut u8,
-    old_size: usize,
-    size: usize,
-    align: usize,
-) -> usize {
+pub extern "C" fn __rust_reallocate_inplace(ptr: *mut u8,
+                                            old_size: usize,
+                                            size: usize,
+                                            align: usize)
+                                            -> usize {
     size
 }
 

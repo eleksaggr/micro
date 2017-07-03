@@ -4,38 +4,41 @@ use multiboot2::{MemoryArea, MemoryAreaIter};
 
 pub struct BitmapAllocator {
     amount: usize,
+    base: usize,
+    last: usize,
 }
 
 impl BitmapAllocator {
-    const BASE: usize = 0x2000000;
-
-    pub fn new<A>(
-        total_size: usize,
-        reserved_areas: MemoryAreaIter,
-        allocator: &mut A,
-    ) -> BitmapAllocator
-    where
-        A: Allocator,
+    pub fn new<A>(total_size: usize, allocator: &mut A) -> BitmapAllocator
+        where A: Allocator
     {
         // First determine the amount of bitmaps needed, to address the whole memory.
         // Each Bitmap can hold mem::size_of::<usize> * 8 frames, since a frame is simply
         // represented by a bit.
         let amount = total_size / (Frame::SIZE * mem::size_of::<usize>() * 8);
 
+        // Allocate a frame to save the bitmaps in memory.
+        let n = (amount * mem::size_of::<usize>()) / Frame::SIZE + 1;
+        let frame = allocator.allocate().expect("Could not allocate frame for bitmaps.");
+        for i in 1..n {
+            allocator.allocate().expect("Could not allocate frame for bitmaps.");
+        }
+
         // Now zero the memory space the bitmaps will occupy.
         for i in 0..amount {
-            Bitmap::from(i).zero();
+            Bitmap::from(frame.base(), i).zero();
         }
 
-        let allocator = BitmapAllocator { amount: amount };
+        let allocator = BitmapAllocator {
+            amount: amount,
+            base: frame.base(),
+            last: 0,
+        };
 
-        // Some cool iterator chaining magic happened here before, but the multiboot crate, gives
-        // me no way to create a MemoryArea myself unfortunately.
-        for area in reserved_areas {
-            allocator.mark_area(area);
-        }
+        allocator.mark(allocator.base, amount * mem::size_of::<usize>());
 
-        allocator.mark(BitmapAllocator::BASE, amount * mem::size_of::<usize>());
+        // Mark the whole lower part of memory as used, so we won't write into something important.
+        allocator.mark(0x0, 0x130000);
 
         allocator
     }
@@ -45,11 +48,15 @@ impl BitmapAllocator {
     }
 
     fn mark(&self, addr: usize, length: usize) {
-        let n = length / Frame::SIZE;
+        let n = length / Frame::SIZE + 1;
         for i in 0..n {
             let p = addr + i * Frame::SIZE;
-            Bitmap::containing(p).set(Bitmap::offset(p));
+            Bitmap::containing(self.base, p).set(Bitmap::offset(p));
         }
+    }
+
+    pub fn used(&self) -> (usize, usize) {
+        (self.base, (self.amount * mem::size_of::<usize>()) / Frame::SIZE + 1)
     }
 }
 
@@ -58,16 +65,14 @@ struct Bitmap {
 }
 
 impl Bitmap {
-    fn from(index: usize) -> Bitmap {
-        Bitmap {
-            ptr: unsafe { (BitmapAllocator::BASE + index * mem::size_of::<usize>()) as *mut usize },
-        }
+    fn from(base: usize, index: usize) -> Bitmap {
+        Bitmap { ptr: (base + index * mem::size_of::<usize>()) as *mut usize }
     }
 
-    fn containing(addr: usize) -> Bitmap {
+    fn containing(base: usize, addr: usize) -> Bitmap {
         let frame = Frame::containing(addr);
         let index = frame.id() / (mem::size_of::<usize>() * 8);
-        Bitmap::from(index)
+        Bitmap::from(base, index)
     }
 
     fn offset(addr: usize) -> usize {
@@ -108,11 +113,13 @@ impl Bitmap {
 
 impl Allocator for BitmapAllocator {
     fn allocate(&mut self) -> Option<Frame> {
-        for i in 0..self.amount {
-            let offset = Bitmap::from(i).next();
+        for i in self.last..self.amount {
+            if i > self.last {
+                self.last = i;
+            }
+            let offset = Bitmap::from(self.base, i).next();
             if offset.is_some() {
                 let frame = Frame { id: i * mem::size_of::<usize>() * 8 + offset.unwrap() };
-                frame.zero();
                 return Some(frame);
             }
         }

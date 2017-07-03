@@ -9,6 +9,7 @@
 extern crate alloc;
 #[macro_use]
 extern crate bitflags;
+extern crate bit_field;
 extern crate buddy;
 #[macro_use]
 extern crate lazy_static;
@@ -30,9 +31,15 @@ pub extern "C" fn kmain(mb_addr: usize) {
     let info = unsafe { multiboot2::load(mb_addr) };
     enable_nxe();
     enable_wp();
-    memory::init(info);
-    interrupt::init();
 
+    let mut mcon = memory::init(info);
+    interrupt::init(&mut mcon);
+
+    unsafe {
+        *(0xdeadbeef as *mut u8) = 0xAB;
+    }
+
+    println!("Did not crash!");
     loop {}
 }
 

@@ -4,26 +4,22 @@ use multiboot2::{MemoryArea, MemoryAreaIter};
 pub struct AreaAllocator {
     area: Option<&'static MemoryArea>,
     areas: MemoryAreaIter,
-    kernel: (usize, usize),
-    multiboot: (usize, usize),
+    kernel: (Frame, Frame),
+    multiboot: (Frame, Frame),
     next: Frame,
 }
 
 impl AreaAllocator {
-    pub fn new(
-        kernel: (Frame, Frame),
-        multiboot: (Frame, Frame),
-        areas: MemoryAreaIter,
-    ) -> AreaAllocator {
+    pub fn new(kernel: (usize, usize),
+               multiboot: (usize, usize),
+               areas: MemoryAreaIter)
+               -> AreaAllocator {
         let mut allocator = AreaAllocator {
-            next: Frame::containing(0),
+            next: Frame { id: Frame::containing(kernel.1).id() + 1 },
             area: None,
             areas: areas,
             kernel: (Frame::containing(kernel.0), Frame::containing(kernel.1)),
-            multiboot: (
-                Frame::containing(multiboot.0),
-                Frame::containing(multiboot.1),
-            ),
+            multiboot: (Frame::containing(multiboot.0), Frame::containing(multiboot.1)),
         };
         allocator.next();
         allocator
@@ -34,7 +30,7 @@ impl AreaAllocator {
             .clone()
             .filter(|area| {
                 let address = area.base_addr + area.length - 1;
-                Frame::containg(address as usize) >= self.next
+                Frame::containing(address as usize) >= self.next
             })
             .min_by_key(|area| area.base_addr);
 
@@ -54,7 +50,7 @@ impl Allocator for AreaAllocator {
 
             let last = {
                 let address = area.base_addr + area.length - 1;
-                Frame::containing(address as usize);
+                Frame::containing(address as usize)
             };
 
             if frame > last {
@@ -67,7 +63,7 @@ impl Allocator for AreaAllocator {
                 self.next.id += 1;
                 return Some(frame);
             }
-            self.allocate();
+            self.allocate()
         } else {
             None
         }

@@ -1,9 +1,10 @@
-use multiboot2::BootInformation;
-use memory::frame::{self, Frame};
-use memory::paging::table::{ActiveTable, Flags, InactiveTable, TempPage, PRESENT};
-
 pub use self::mapper::Mapper;
-pub use self::table::WRITABLE;
+pub use self::table::{ActiveTable, WRITABLE};
+
+use core::ops::Add;
+use memory::frame::{self, Frame};
+use memory::paging::table::{Flags, InactiveTable, TempPage, PRESENT};
+use multiboot2::BootInformation;
 
 mod mapper;
 mod table;
@@ -14,7 +15,7 @@ pub struct Page {
 }
 
 impl Page {
-    const SIZE: usize = 4096;
+    pub const SIZE: usize = 4096;
 
     pub fn containing(addr: usize) -> Page {
         assert!(addr < 0x0000_8000_0000_0000 || addr >= 0xffff_8000_0000_0000,
@@ -48,6 +49,15 @@ impl Page {
     }
 }
 
+impl Add<usize> for Page {
+    type Output = Page;
+
+    fn add(self, rhs: usize) -> Page {
+        Page { id: self.id + rhs }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct PageIter {
     start: Page,
     end: Page,
@@ -67,7 +77,10 @@ impl Iterator for PageIter {
     }
 }
 
-pub fn remap_kernel<A>(allocator: &mut A, info: &BootInformation) -> ActiveTable
+pub fn remap_kernel<A>(allocator: &mut A,
+                       info: &BootInformation,
+                       reserved: (usize, usize))
+                       -> ActiveTable
     where A: frame::Allocator
 {
     let mut temp = TempPage::new(Page { id: 0xdeadaffe }, allocator);
@@ -88,23 +101,26 @@ pub fn remap_kernel<A>(allocator: &mut A, info: &BootInformation) -> ActiveTable
 
             assert!(section.start_address() % Page::SIZE == 0,
                     "Sections need to be aligned");
-            // println!(
-            //     "Mapping section at Address: {:#x}, Size: {:#x}",
-            //     section.addr,
-            //     section.size
-            // );
-
             let flags = Flags::from_elf(section);
 
             let start = Frame::containing(section.start_address());
             let end = Frame::containing(section.end_address() - 1);
+
             for frame in Frame::range(start, end) {
                 mapper.map_id(frame, flags, allocator);
             }
+            println!("Mapped an ELF section.");
         }
+
+        for frame in Frame::range(Frame::containing(reserved.0),
+                                  Frame::containing(reserved.0 + reserved.1)) {
+            mapper.map_id(frame, PRESENT | WRITABLE, allocator);
+        }
+        println!("Mapped section reserved for allocator.");
 
         // Identity map the VGA buffer.
         mapper.map_id(Frame::containing(0xb8000), WRITABLE, allocator);
+        println!("Mapped VGA buffer.");
 
         // Identity map the Multiboot info structure.
         let mb_start = Frame::containing(info.start_address());
@@ -112,6 +128,7 @@ pub fn remap_kernel<A>(allocator: &mut A, info: &BootInformation) -> ActiveTable
         for frame in Frame::range(mb_start, mb_end) {
             mapper.map_id(frame, PRESENT, allocator);
         }
+        println!("Mapped multiboot info structure.");
     });
 
     let old = table.switch(new);

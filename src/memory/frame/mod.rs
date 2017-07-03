@@ -1,4 +1,5 @@
 pub use self::allocator::Allocator;
+pub use self::allocator::area::AreaAllocator;
 pub use self::allocator::bitmap::BitmapAllocator;
 
 use core::iter::Iterator;
@@ -33,14 +34,6 @@ impl Frame {
 
     pub fn id(&self) -> usize {
         self.id
-    }
-
-    pub fn zero(&self) {
-        for i in 0..Frame::SIZE {
-            unsafe {
-                *((self.base() + i) as *mut u8) = 0;
-            }
-        }
     }
 
     pub fn range(start: Frame, end: Frame) -> FrameIter {

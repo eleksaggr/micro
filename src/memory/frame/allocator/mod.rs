@@ -1,5 +1,6 @@
 use super::Frame;
 
+pub mod area;
 pub mod bitmap;
 
 pub trait Allocator {
