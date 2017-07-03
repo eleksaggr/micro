@@ -70,17 +70,6 @@ pub fn print(args: fmt::Arguments) {
     WRITER.lock().write_fmt(args).unwrap();
 }
 
-// pub fn clear_screen() {
-//     for _ in 0..BUFFER_HEIGHT {
-//         println!("");
-//     }
-// }
-
-// pub fn set_color(fg: Color, bg: Color) {
-//     let mut writer = WRITER.lock();
-//     writer.color = ColorCode::new(fg, bg);
-// }
-
 pub struct Writer {
     column: usize,
     color: ColorCode,

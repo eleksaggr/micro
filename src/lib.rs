@@ -21,12 +21,16 @@ extern crate x86_64;
 
 #[macro_use]
 mod vga;
+#[macro_use]
+mod util;
 mod memory;
 
 use core::fmt;
+use util::log::Logger;
 
 #[no_mangle]
 pub extern "C" fn kmain(mb_addr: usize) {
+    log!(util::log::Level::Info, "Starting execution...");
     let info = unsafe { multiboot2::load(mb_addr) };
 
     memory::init(&info);
