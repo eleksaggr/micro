@@ -28,27 +28,11 @@ use core::fmt;
 #[no_mangle]
 pub extern "C" fn kmain(mb_addr: usize) {
     let info = unsafe { multiboot2::load(mb_addr) };
-    enable_nxe();
-    enable_wp();
+
+    memory::init(&info);
 
     println!("Did not crash!");
     loop {}
-}
-
-fn enable_nxe() {
-    use x86_64::registers::msr::{IA32_EFER, rdmsr, wrmsr};
-
-    let nxe = 1 << 11;
-    unsafe {
-        let efer = rdmsr(IA32_EFER);
-        wrmsr(IA32_EFER, efer | nxe);
-    }
-}
-
-fn enable_wp() {
-    use x86_64::registers::control_regs::{cr0, cr0_write, Cr0};
-
-    unsafe { cr0_write(cr0() | Cr0::WRITE_PROTECT) };
 }
 
 #[lang = "eh_personality"]

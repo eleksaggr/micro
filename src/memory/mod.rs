@@ -1,34 +1,12 @@
-pub use memory::stack::Stack;
 pub use memory::paging::remap_kernel;
 
 use multiboot2::BootInformation;
 use self::frame::{BitmapAllocator, AreaAllocator};
-use self::paging::ActiveTable;
-use self::stack::StackAllocator;
 
 mod frame;
 mod paging;
-mod stack;
 
-pub struct MemoryController {
-    table: ActiveTable,
-    frame_allocator: BitmapAllocator,
-    stack_allocator: StackAllocator,
-}
-
-impl MemoryController {
-    pub fn allocate_stack(&mut self, size: usize) -> Option<Stack> {
-        let &mut MemoryController {
-            ref mut table,
-            ref mut frame_allocator,
-            ref mut stack_allocator,
-        } = self;
-
-        stack_allocator.allocate(table, frame_allocator, size)
-    }
-}
-
-pub fn init(info: &BootInformation) -> MemoryController {
+pub fn init(info: &BootInformation) {
     let mmtag = info.memory_map_tag().expect("Memory Map Tag required");
     let elftag = info.elf_sections_tag().expect("ELF Sections Tag required");
 
@@ -85,19 +63,5 @@ pub fn init(info: &BootInformation) -> MemoryController {
     let heap_end_page = Page::containing(BASE + SIZE - 1);
     for page in Page::range(heap_start_page, heap_end_page) {
         table.map(page, paging::WRITABLE, &mut allocator);
-    }
-
-    let stack_allocator = {
-        let stack_alloc_start = heap_end_page + 1;
-        let stack_alloc_end = stack_alloc_start + 100;
-        let stack_alloc_range = Page::range(stack_alloc_start, stack_alloc_end);
-
-        StackAllocator::new(stack_alloc_range)
-    };
-
-    MemoryController {
-        table: table,
-        frame_allocator: allocator,
-        stack_allocator: stack_allocator,
     }
 }
