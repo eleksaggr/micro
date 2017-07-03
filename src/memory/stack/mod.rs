@@ -34,12 +34,14 @@ impl StackAllocator {
         StackAllocator { range: range }
     }
 
-    pub fn allocate<A>(&mut self,
-                       table: &mut ActiveTable,
-                       allocator: &mut A,
-                       size: usize)
-                       -> Option<Stack>
-        where A: frame::Allocator
+    pub fn allocate<A>(
+        &mut self,
+        table: &mut ActiveTable,
+        allocator: &mut A,
+        size: usize,
+    ) -> Option<Stack>
+    where
+        A: frame::Allocator,
     {
         if size == 0 {
             return None;

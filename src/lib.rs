@@ -21,7 +21,6 @@ extern crate x86_64;
 
 #[macro_use]
 mod vga;
-mod interrupt;
 mod memory;
 
 use core::fmt;
@@ -31,13 +30,6 @@ pub extern "C" fn kmain(mb_addr: usize) {
     let info = unsafe { multiboot2::load(mb_addr) };
     enable_nxe();
     enable_wp();
-
-    let mut mcon = memory::init(info);
-    interrupt::init(&mut mcon);
-
-    unsafe {
-        *(0xdeadbeef as *mut u8) = 0xAB;
-    }
 
     println!("Did not crash!");
     loop {}

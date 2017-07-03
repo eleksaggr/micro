@@ -18,9 +18,11 @@ pub struct MemoryController {
 
 impl MemoryController {
     pub fn allocate_stack(&mut self, size: usize) -> Option<Stack> {
-        let &mut MemoryController { ref mut table,
-                                    ref mut frame_allocator,
-                                    ref mut stack_allocator } = self;
+        let &mut MemoryController {
+            ref mut table,
+            ref mut frame_allocator,
+            ref mut stack_allocator,
+        } = self;
 
         stack_allocator.allocate(table, frame_allocator, size)
     }
@@ -31,31 +33,39 @@ pub fn init(info: &BootInformation) -> MemoryController {
     let elftag = info.elf_sections_tag().expect("ELF Sections Tag required");
 
     println!("Finding kernel start...");
-    let kernel_start = elftag.sections()
+    let kernel_start = elftag
+        .sections()
         .filter(|s| s.is_allocated())
         .map(|s| s.addr)
         .min()
         .unwrap();
     println!("Finding kernel end...");
-    let kernel_end = elftag.sections()
+    let kernel_end = elftag
+        .sections()
         .filter(|s| s.is_allocated())
         .map(|s| s.addr + s.size)
         .max()
         .unwrap();
-    println!("Kernel located at: {:#x} until {:#x}",
-             (kernel_start as usize),
-             (kernel_end as usize));
+    println!(
+        "Kernel located at: {:#x} until {:#x}",
+        (kernel_start as usize),
+        (kernel_end as usize)
+    );
 
     let mb_start = info.start_address();
     let mb_end = info.end_address();
-    println!("Multiboot located at: {:#x} until {:#x}",
-             (mb_start as usize),
-             (mb_end as usize));
+    println!(
+        "Multiboot located at: {:#x} until {:#x}",
+        (mb_start as usize),
+        (mb_end as usize)
+    );
 
 
-    let mut pre_allocator = AreaAllocator::new((kernel_start as usize, kernel_end as usize),
-                                               (mb_start as usize, mb_end as usize),
-                                               mmtag.memory_areas());
+    let mut pre_allocator = AreaAllocator::new(
+        (kernel_start as usize, kernel_end as usize),
+        (mb_start as usize, mb_end as usize),
+        mmtag.memory_areas(),
+    );
 
 
     let mut memory_size = 0;

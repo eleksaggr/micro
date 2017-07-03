@@ -169,31 +169,11 @@ _error:
 section .rodata
 ; The Global Descriptor Table we use, once we are in 64-Bit mode.
 GDT64:
-	.Null
 	dq 0
 	.Code equ $ - GDT64
-	dw 0
-	dw 0
-	db 0
-	db 0x9A
-	db 0xC0 
-	db 0
-	;dq (1 << 44) | (1 << 47) | (1 << 41) | (1 << 43) | (1 << 53)
+	dq (1<<44) | (1<<47) | (1<<41) | (1<<43) | (1<<53)
 	.Data equ $ - GDT64
-	dw 0
-	dw 0
-	db 0
-	db 0xA2
-	db 0xC0
-	db 0
-	;dq (1 << 44)  | (1 << 47) | (1 << 41)
-	.Tss equ $ - GDT64
-	dw 0
-	dw 0
-	db 0
-	db 0x82
-	db 0xC0
-	db 0
+	dq (1 << 44)  | (1<<47) | (1<<41)
 	.Pointer:
 	dw $ - GDT64 - 1
 	dq GDT64
@@ -208,5 +188,5 @@ p2_table:
 	resb 4096
 stack_bottom:
 	; Reserve 16KB for the stack.
-	resb 4096 * 4 
+	resb 4096 * 4
 stack_top:
