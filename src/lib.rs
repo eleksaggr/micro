@@ -24,6 +24,7 @@ mod vga;
 #[macro_use]
 mod util;
 mod memory;
+mod interrupt;
 
 use core::fmt;
 use util::log::Logger;
@@ -33,9 +34,14 @@ pub extern "C" fn kmain(mb_addr: usize) {
     log!(util::log::Level::Info, "Starting execution...");
     let info = unsafe { multiboot2::load(mb_addr) };
 
-    memory::init(&info);
+    let mut mcon = memory::init(&info);
+    interrupt::init(&mut mcon);
 
-    println!("Did not crash!");
+    unsafe {
+        *(0xdeadbeef as *mut u8) = 0x88;
+    }
+
+    panic!("Did not crash!");
     loop {}
 }
 
@@ -45,7 +51,11 @@ extern "C" fn eh_personality() {}
 #[lang = "panic_fmt"]
 #[no_mangle]
 extern "C" fn panic_fmt(fmt: fmt::Arguments, file: &'static str, line: u32) -> ! {
-    println!("Panicked in {} at line {}: {}", file, line, fmt);
+    log!(util::log::Level::Error,
+         "Panicked in {} at line {}: {}",
+         file,
+         line,
+         fmt);
     loop {}
 }
 

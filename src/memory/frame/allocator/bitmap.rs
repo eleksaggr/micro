@@ -9,8 +9,7 @@ pub struct BitmapAllocator {
 
 impl BitmapAllocator {
     pub fn new<A>(total_size: usize, allocator: &mut A) -> BitmapAllocator
-    where
-        A: Allocator,
+        where A: Allocator
     {
         // First determine the amount of bitmaps needed, to address the whole memory.
         // Each Bitmap can hold mem::size_of::<usize> * 8 frames, since a frame is simply
@@ -19,12 +18,10 @@ impl BitmapAllocator {
 
         // Allocate a frame to save the bitmaps in memory.
         let n = (amount * mem::size_of::<usize>()) / Frame::SIZE + 1;
-        let frame = allocator
-            .allocate()
+        let frame = allocator.allocate()
             .expect("Could not allocate frame for bitmaps.");
         for _ in 1..n {
-            allocator
-                .allocate()
+            allocator.allocate()
                 .expect("Could not allocate frame for bitmaps.");
         }
 
@@ -56,10 +53,7 @@ impl BitmapAllocator {
     }
 
     pub fn used(&self) -> (usize, usize) {
-        (
-            self.base,
-            (self.amount * mem::size_of::<usize>()) / Frame::SIZE + 1,
-        )
+        (self.base, (self.amount * mem::size_of::<usize>()) / Frame::SIZE + 1)
     }
 }
 

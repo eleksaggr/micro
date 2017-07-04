@@ -25,12 +25,44 @@ pub enum Color {
     White = 15,
 }
 
+impl Color {
+    fn from_int(i: u8) -> Color {
+        match i {
+            0 => Color::Black,
+            1 => Color::Blue,
+            2 => Color::Green,
+            3 => Color::Cyan,
+            4 => Color::Red,
+            5 => Color::Magenta,
+            6 => Color::Brown,
+            7 => Color::LightGray,
+            8 => Color::DarkGray,
+            9 => Color::LightBlue,
+            10 => Color::LightGreen,
+            11 => Color::LightCyan,
+            12 => Color::LightRed,
+            13 => Color::Pink,
+            14 => Color::Yellow,
+            15 => Color::White,
+            _ => Color::White,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 struct ColorCode(u8);
 
 impl ColorCode {
     const fn new(foreground: Color, background: Color) -> ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
+    }
+
+    pub fn get_fg(&self) -> Color {
+        Color::from_int(self.0 & 0xF)
+    }
+
+    pub fn get_bg(&self) -> Color {
+        Color::from_int((self.0 & 0xF0) >> 4)
     }
 }
 
@@ -125,6 +157,14 @@ impl Writer {
         for col in 0..BUFFER_WIDTH {
             self.buffer().chars[row][col].write(blank);
         }
+    }
+
+    pub fn get_color(&self) -> ColorCode {
+        self.color
+    }
+
+    pub fn set_color(&mut self, fg: Color, bg: Color) {
+        self.color = ColorCode::new(fg, bg);
     }
 }
 

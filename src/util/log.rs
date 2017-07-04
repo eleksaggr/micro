@@ -1,10 +1,11 @@
 use core::fmt;
 use spin::Mutex;
+use vga;
 
 macro_rules! log {
     ($lvl:expr, $($arg:tt)+) => ({
         let level = $lvl;
-        util::log::LOGGER.lock().log(level, format_args!($($arg)+));
+        $crate::util::log::LOGGER.lock().log(level, format_args!($($arg)+));
     })
 }
 
@@ -13,7 +14,7 @@ lazy_static! {
 }
 
 pub trait Logger {
-    fn log(&mut self, level: Level, fmt: &mut fmt::Formatter);
+    fn log(&mut self, level: Level, args: fmt::Arguments);
 }
 
 pub struct PrintLogger {
@@ -27,8 +28,18 @@ impl PrintLogger {
 }
 
 impl Logger for PrintLogger {
-    fn log(&mut self, level: Level, fmt: &mut fmt::Formatter) {
-        println!("[{}] {}", level, fmt);
+    fn log(&mut self, level: Level, args: fmt::Arguments) {
+        let backup = vga::WRITER.lock().get_color();
+        match level {
+            Level::Info => vga::WRITER.lock().set_color(vga::Color::White, vga::Color::Black),
+            Level::Warn => vga::WRITER.lock().set_color(vga::Color::Yellow, vga::Color::Black),
+            Level::Error => vga::WRITER.lock().set_color(vga::Color::Red, vga::Color::Black),
+        }
+
+        print!("[{}] ", level);
+        vga::print(args);
+        println!("");
+        vga::WRITER.lock().set_color(backup.get_fg(), backup.get_bg());
     }
 }
 

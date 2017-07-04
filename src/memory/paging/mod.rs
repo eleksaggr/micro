@@ -18,11 +18,9 @@ impl Page {
     pub const SIZE: usize = 4096;
 
     pub fn containing(addr: usize) -> Page {
-        assert!(
-            addr < 0x0000_8000_0000_0000 || addr >= 0xffff_8000_0000_0000,
-            "Invalid Address: 0x{:x}",
-            addr
-        );
+        assert!(addr < 0x0000_8000_0000_0000 || addr >= 0xffff_8000_0000_0000,
+                "Invalid Address: 0x{:x}",
+                addr);
         Page { id: addr / Page::SIZE }
     }
 
@@ -79,13 +77,11 @@ impl Iterator for PageIter {
     }
 }
 
-pub fn remap_kernel<A>(
-    allocator: &mut A,
-    info: &BootInformation,
-    reserved: (usize, usize),
-) -> ActiveTable
-where
-    A: frame::Allocator,
+pub fn remap_kernel<A>(allocator: &mut A,
+                       info: &BootInformation,
+                       reserved: (usize, usize))
+                       -> ActiveTable
+    where A: frame::Allocator
 {
     let mut temp = TempPage::new(Page { id: 0xdeadaffe }, allocator);
 
@@ -103,10 +99,8 @@ where
                 continue;
             }
 
-            assert!(
-                section.start_address() % Page::SIZE == 0,
-                "Sections need to be aligned"
-            );
+            assert!(section.start_address() % Page::SIZE == 0,
+                    "Sections need to be aligned");
             let flags = Flags::from_elf(section);
 
             let start = Frame::containing(section.start_address());
@@ -115,20 +109,15 @@ where
             for frame in Frame::range(start, end) {
                 mapper.map_id(frame, flags, allocator);
             }
-            println!("Mapped an ELF section.");
         }
 
-        for frame in Frame::range(
-            Frame::containing(reserved.0),
-            Frame::containing(reserved.0 + reserved.1),
-        ) {
+        for frame in Frame::range(Frame::containing(reserved.0),
+                                  Frame::containing(reserved.0 + reserved.1)) {
             mapper.map_id(frame, PRESENT | WRITABLE, allocator);
         }
-        println!("Mapped section reserved for allocator.");
 
         // Identity map the VGA buffer.
         mapper.map_id(Frame::containing(0xb8000), WRITABLE, allocator);
-        println!("Mapped VGA buffer.");
 
         // Identity map the Multiboot info structure.
         let mb_start = Frame::containing(info.start_address());
@@ -136,14 +125,12 @@ where
         for frame in Frame::range(mb_start, mb_end) {
             mapper.map_id(frame, PRESENT, allocator);
         }
-        println!("Mapped multiboot info structure.");
     });
 
     let old = table.switch(new);
 
     let old_p4 = Page::containing(old.frame.base());
     table.unmap(old_p4, allocator);
-    // println!("Guard page at {:#x}", old_p4.base_addr());
 
     table
 }
