@@ -10,16 +10,20 @@ pub struct AreaAllocator {
 }
 
 impl AreaAllocator {
-    pub fn new(kernel: (usize, usize),
-               multiboot: (usize, usize),
-               areas: MemoryAreaIter)
-               -> AreaAllocator {
+    pub fn new(
+        kernel: (usize, usize),
+        multiboot: (usize, usize),
+        areas: MemoryAreaIter,
+    ) -> AreaAllocator {
         let mut allocator = AreaAllocator {
             next: Frame { id: Frame::containing(kernel.1).id() + 1 },
             area: None,
             areas: areas,
             kernel: (Frame::containing(kernel.0), Frame::containing(kernel.1)),
-            multiboot: (Frame::containing(multiboot.0), Frame::containing(multiboot.1)),
+            multiboot: (
+                Frame::containing(multiboot.0),
+                Frame::containing(multiboot.1),
+            ),
         };
         allocator.next();
         allocator

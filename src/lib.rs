@@ -37,9 +37,10 @@ pub extern "C" fn kmain(mb_addr: usize) {
     let mut mcon = memory::init(&info);
     interrupt::init(&mut mcon);
 
-    unsafe {
-        *(0xdeadbeef as *mut u8) = 0x88;
+    fn overflow() {
+        overflow();
     }
+    overflow();
 
     panic!("Did not crash!");
     loop {}
@@ -51,11 +52,13 @@ extern "C" fn eh_personality() {}
 #[lang = "panic_fmt"]
 #[no_mangle]
 extern "C" fn panic_fmt(fmt: fmt::Arguments, file: &'static str, line: u32) -> ! {
-    log!(util::log::Level::Error,
-         "Panicked in {} at line {}: {}",
-         file,
-         line,
-         fmt);
+    log!(
+        util::log::Level::Error,
+        "Panicked in {} at line {}: {}",
+        file,
+        line,
+        fmt
+    );
     loop {}
 }
 

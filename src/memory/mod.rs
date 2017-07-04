@@ -18,8 +18,11 @@ pub struct MemoryController {
 
 impl MemoryController {
     pub fn allocate_stack(&mut self, pages: usize) -> Option<stack::Stack> {
-        let &mut MemoryController { ref mut table, ref mut allocator, ref mut stack_allocator } =
-            self;
+        let &mut MemoryController {
+            ref mut table,
+            ref mut allocator,
+            ref mut stack_allocator,
+        } = self;
 
         stack_allocator.allocate(table, allocator, pages)
     }
@@ -29,39 +32,49 @@ pub fn init(info: &BootInformation) -> MemoryController {
     let mmtag = info.memory_map_tag().expect("Memory Map Tag required");
     let elftag = info.elf_sections_tag().expect("ELF Sections Tag required");
 
-    let kernel_start = elftag.sections()
+    let kernel_start = elftag
+        .sections()
         .filter(|s| s.is_allocated())
         .map(|s| s.addr)
         .min()
         .unwrap();
-    let kernel_end = elftag.sections()
+    let kernel_end = elftag
+        .sections()
         .filter(|s| s.is_allocated())
         .map(|s| s.addr + s.size)
         .max()
         .unwrap();
     let mb_start = info.start_address();
     let mb_end = info.end_address();
-    log!(Level::Info,
-         "Kernel occupies memory from {:#x} to {:#x}",
-         kernel_start,
-         kernel_end);
-    log!(Level::Info,
-         "Multiboot header occupies memory from {:#x} to {:#x}",
-         mb_start,
-         mb_end);
+    log!(
+        Level::Info,
+        "Kernel occupies memory from {:#x} to {:#x}",
+        kernel_start,
+        kernel_end
+    );
+    log!(
+        Level::Info,
+        "Multiboot header occupies memory from {:#x} to {:#x}",
+        mb_start,
+        mb_end
+    );
 
-    let mut pre_allocator = AreaAllocator::new((kernel_start as usize, kernel_end as usize),
-                                               (mb_start as usize, mb_end as usize),
-                                               mmtag.memory_areas());
+    let mut pre_allocator = AreaAllocator::new(
+        (kernel_start as usize, kernel_end as usize),
+        (mb_start as usize, mb_end as usize),
+        mmtag.memory_areas(),
+    );
 
 
     let mut memory_size = 0;
     for area in mmtag.memory_areas() {
         memory_size += area.length;
     }
-    log!(Level::Info,
-         "Total memory size found to be: {} KB",
-         memory_size / 1024);
+    log!(
+        Level::Info,
+        "Total memory size found to be: {} KB",
+        memory_size / 1024
+    );
 
     let mut allocator = BitmapAllocator::new((memory_size as usize), &mut pre_allocator);
     let reserved = allocator.used();
@@ -76,10 +89,12 @@ pub fn init(info: &BootInformation) -> MemoryController {
     for page in Page::range(heap_start_page, heap_end_page) {
         table.map(page, paging::WRITABLE, &mut allocator);
     }
-    log!(Level::Info,
-         "Heap spans memory region from {:#x} to {:#x}",
-         heap_start_page.base_addr(),
-         heap_end_page.base_addr() + Page::SIZE - 1);
+    log!(
+        Level::Info,
+        "Heap spans memory region from {:#x} to {:#x}",
+        heap_start_page.base_addr(),
+        heap_end_page.base_addr() + Page::SIZE - 1
+    );
 
     let stack_allocator = {
         let alloc_start = heap_end_page + 1;

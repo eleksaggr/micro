@@ -4,6 +4,8 @@ bits 64
 extern kmain
 
 _start64:
+
+    call _zero_segments
     call _enable_nx
     call _enable_wp
 
@@ -29,4 +31,13 @@ _enable_wp:             ; Enable the Write Protect feature
     mov rcx, cr0
     or rcx, 0x10000
     mov cr0, rcx
+    ret
+
+_zero_segments:
+    mov ax, 0
+    mov ss, ax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
     ret

@@ -14,6 +14,7 @@ lazy_static! {
         let mut idt = Idt::new();
 
         idt.breakpoint.set_handler_fn(bp_handler);
+        idt.general_protection_fault.set_handler_fn(gp_handler);
         unsafe {
             idt.double_fault.set_handler_fn(df_handler).set_stack_index(DOUBLE_FAULT_IST_INDEX as u16);
         }
@@ -30,7 +31,8 @@ const DOUBLE_FAULT_IST_INDEX: usize = 0;
 pub fn init(mcon: &mut MemoryController) {
     use x86_64::VirtualAddress;
 
-    let df_stack = mcon.allocate_stack(1).expect("Could not allocate stack for double fault handler.");
+    let df_stack = mcon.allocate_stack(1)
+        .expect("Could not allocate stack for double fault handler.");
 
     let tss = TSS.call_once(|| {
         let mut tss = TaskStateSegment::new();
@@ -46,7 +48,7 @@ pub fn init(mcon: &mut MemoryController) {
         tss_selector = gdt.add(gdt::Descriptor::tss(&tss));
         gdt
     });
-    gdt.load(); 
+    gdt.load();
 
     unsafe {
         set_cs(code_selector);
@@ -65,6 +67,14 @@ extern "x86-interrupt" fn bp_handler(stack: &mut ExceptionStackFrame) {
 extern "x86-interrupt" fn df_handler(stack: &mut ExceptionStackFrame, _: u64) {
     log!(Level::Warn, "Caught exception: Double Fault");
     log!(Level::Warn, "Printing stack frame at point of exception:");
+    // TODO: Find out why log produces shit here.
+    // log!(Level::Warn, "{:#?}", stack);
+    println!("{:#?}", stack);
+    loop {}
+}
+
+extern "x86-interrupt" fn gp_handler(stack: &mut ExceptionStackFrame, code: u64) {
+    log!(Level::Warn, "Caught exception: General Protection Fault");
+    log!(Level::Warn, "Printing stack frame at point of exception:");
     log!(Level::Warn, "{:#?}", stack);
-    loop{}
 }

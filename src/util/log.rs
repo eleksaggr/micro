@@ -31,15 +31,29 @@ impl Logger for PrintLogger {
     fn log(&mut self, level: Level, args: fmt::Arguments) {
         let backup = vga::WRITER.lock().get_color();
         match level {
-            Level::Info => vga::WRITER.lock().set_color(vga::Color::White, vga::Color::Black),
-            Level::Warn => vga::WRITER.lock().set_color(vga::Color::Yellow, vga::Color::Black),
-            Level::Error => vga::WRITER.lock().set_color(vga::Color::Red, vga::Color::Black),
+            Level::Info => {
+                vga::WRITER
+                    .lock()
+                    .set_color(vga::Color::White, vga::Color::Black)
+            }
+            Level::Warn => {
+                vga::WRITER
+                    .lock()
+                    .set_color(vga::Color::Yellow, vga::Color::Black)
+            }
+            Level::Error => {
+                vga::WRITER
+                    .lock()
+                    .set_color(vga::Color::Red, vga::Color::Black)
+            }
         }
 
         print!("[{}] ", level);
         vga::print(args);
         println!("");
-        vga::WRITER.lock().set_color(backup.get_fg(), backup.get_bg());
+        vga::WRITER
+            .lock()
+            .set_color(backup.get_fg(), backup.get_bg());
     }
 }
 

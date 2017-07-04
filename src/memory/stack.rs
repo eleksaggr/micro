@@ -8,8 +8,10 @@ pub struct Stack {
 
 impl Stack {
     pub fn new(top: usize, bottom: usize) -> Stack {
-        assert!(top > bottom,
-                "Impossible to create stack with top lower than bottom.");
+        assert!(
+            top > bottom,
+            "Impossible to create stack with top lower than bottom."
+        );
         Stack {
             top: top,
             bottom: bottom,
@@ -34,12 +36,14 @@ impl StackAllocator {
         StackAllocator { range: range }
     }
 
-    pub fn allocate<A>(&mut self,
-                       active_table: &mut ActiveTable,
-                       allocator: &mut A,
-                       pages: usize)
-                       -> Option<Stack>
-        where A: frame::Allocator
+    pub fn allocate<A>(
+        &mut self,
+        active_table: &mut ActiveTable,
+        allocator: &mut A,
+        pages: usize,
+    ) -> Option<Stack>
+    where
+        A: frame::Allocator,
     {
         if pages == 0 {
             return None;
