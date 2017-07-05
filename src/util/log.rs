@@ -32,21 +32,28 @@ impl Logger for PrintLogger {
         let backup = vga::WRITER.lock().get_color();
         match level {
             Level::Info => {
-                vga::WRITER.lock()
+                vga::WRITER
+                    .lock()
                     .set_color(vga::Color::White, vga::Color::Black)
             }
             Level::Warn => {
-                vga::WRITER.lock()
+                vga::WRITER
+                    .lock()
                     .set_color(vga::Color::Yellow, vga::Color::Black)
             }
             Level::Error => {
-                vga::WRITER.lock()
+                vga::WRITER
+                    .lock()
                     .set_color(vga::Color::Red, vga::Color::Black)
             }
         }
 
         println!("[{}] {}", level, args);
-        vga::WRITER.lock()
+        // print!("[{}] ", level);
+        // vga::print(args);
+        // println!("");
+        vga::WRITER
+            .lock()
             .set_color(backup.get_fg(), backup.get_bg());
     }
 }
