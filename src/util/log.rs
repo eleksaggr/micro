@@ -1,6 +1,5 @@
 use core::fmt;
 use spin::Mutex;
-use vga;
 
 macro_rules! log {
     ($lvl:expr, $($arg:tt)+) => ({
