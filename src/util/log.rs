@@ -25,39 +25,44 @@ impl PrintLogger {
     pub fn new(level: Level) -> PrintLogger {
         PrintLogger { level: level }
     }
+
+    pub fn set_level(&mut self, level: Level) {
+        self.level = level;
+    }
 }
 
 impl Logger for PrintLogger {
     fn log(&mut self, level: Level, args: fmt::Arguments) {
-        let backup = vga::WRITER.lock().get_color();
-        match level {
-            Level::Info => {
-                vga::WRITER
-                    .lock()
-                    .set_color(vga::Color::White, vga::Color::Black)
-            }
-            Level::Warn => {
-                vga::WRITER
-                    .lock()
-                    .set_color(vga::Color::Yellow, vga::Color::Black)
-            }
-            Level::Error => {
-                vga::WRITER
-                    .lock()
-                    .set_color(vga::Color::Red, vga::Color::Black)
-            }
-        }
+        if level >= self.level {
+            // let backup = vga::WRITER.lock().get_color();
+            // match level {
+            //     Level::Info => {
+            //         vga::WRITER
+            //             .lock()
+            //             .set_color(vga::Color::White, vga::Color::Black)
+            //     }
+            //     Level::Warn => {
+            //         vga::WRITER
+            //             .lock()
+            //             .set_color(vga::Color::Yellow, vga::Color::Black)
+            //     }
+            //     Level::Error => {
+            //         vga::WRITER
+            //             .lock()
+            //             .set_color(vga::Color::Red, vga::Color::Black)
+            //     }
+            // }
 
-        println!("[{}] {}", level, args);
-        // print!("[{}] ", level);
-        // vga::print(args);
-        // println!("");
-        vga::WRITER
-            .lock()
-            .set_color(backup.get_fg(), backup.get_bg());
+            println!("[{}] {}", level, args);
+            // vga::WRITER
+            //     .lock()
+            //     .set_color(backup.get_fg(), backup.get_bg());
+
+        }
     }
 }
 
+#[derive(PartialOrd, Ord, PartialEq, Eq)]
 pub enum Level {
     Info,
     Warn,

@@ -3,9 +3,27 @@ use core::ptr::Unique;
 use volatile::Volatile;
 use spin::Mutex;
 
+macro_rules! print {
+    ($($arg:tt)*) => ({
+        $crate::vga::print(format_args!($($arg)*));
+    });
+}
+
+macro_rules! println {
+    ($fmt:expr) => (print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+}
+
+
+/// The width of the VGA buffer in characters.
+const BUFFER_WIDTH: usize = 80;
+
+/// The height of the VGA buffer in characters.
+const BUFFER_HEIGHT: usize = 25;
+
 #[allow(dead_code)]
 #[repr(u8)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Color {
     Black = 0,
     Blue = 1,
@@ -26,8 +44,9 @@ pub enum Color {
 }
 
 impl Color {
-    fn from_int(i: u8) -> Color {
-        match i {
+    /// Returns the `Color` associated with the given index.
+    fn with(index: u8) -> Color {
+        match index {
             0 => Color::Black,
             1 => Color::Blue,
             2 => Color::Green,
@@ -49,20 +68,12 @@ impl Color {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Clone, Copy)]
 struct ColorCode(u8);
 
 impl ColorCode {
     const fn new(foreground: Color, background: Color) -> ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
-    }
-
-    pub fn get_fg(&self) -> Color {
-        Color::from_int(self.0 & 0xF)
-    }
-
-    pub fn get_bg(&self) -> Color {
-        Color::from_int((self.0 & 0xF0) >> 4)
     }
 }
 
@@ -73,8 +84,6 @@ struct VGAChar {
     color: ColorCode,
 }
 
-const BUFFER_HEIGHT: usize = 25;
-const BUFFER_WIDTH: usize = 80;
 
 struct Buffer {
     chars: [[Volatile<VGAChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
@@ -86,16 +95,6 @@ pub static WRITER: Mutex<Writer> = Mutex::new(Writer {
     buffer: unsafe { Unique::new(0xb8000 as *mut _) },
 });
 
-macro_rules! print {
-    ($($arg:tt)*) => ({
-        $crate::vga::print(format_args!($($arg)*));
-    });
-}
-
-macro_rules! println {
-    ($fmt:expr) => (print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
-}
 
 pub fn print(args: fmt::Arguments) {
     use core::fmt::Write;
@@ -157,14 +156,6 @@ impl Writer {
         for col in 0..BUFFER_WIDTH {
             self.buffer().chars[row][col].write(blank);
         }
-    }
-
-    pub fn get_color(&self) -> ColorCode {
-        self.color
-    }
-
-    pub fn set_color(&mut self, fg: Color, bg: Color) {
-        self.color = ColorCode::new(fg, bg);
     }
 }
 

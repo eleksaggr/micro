@@ -37,15 +37,7 @@ pub extern "C" fn kmain(mb_addr: usize) {
     let mut mcon = memory::init(&info);
     interrupt::init(&mut mcon);
 
-    x86_64::instructions::interrupts::int3();
-
-    fn overflow() {
-        overflow();
-    }
-    overflow();
-
     panic!("Did not crash!");
-    loop {}
 }
 
 #[lang = "eh_personality"]

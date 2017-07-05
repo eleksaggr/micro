@@ -73,6 +73,7 @@ extern "x86-interrupt" fn df_handler(stack: &mut ExceptionStackFrame, _: u64) {
 
 extern "x86-interrupt" fn gp_handler(stack: &mut ExceptionStackFrame, code: u64) {
     log!(Level::Warn, "Caught exception: General Protection Fault");
+    log!(Level::Warn, "Exception code: {}", code);
     log!(Level::Warn, "Printing stack frame at point of exception:");
     log!(Level::Warn, "{:#?}", stack);
 }
