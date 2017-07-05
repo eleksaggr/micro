@@ -31,7 +31,7 @@ const DOUBLE_FAULT_IST_INDEX: usize = 0;
 pub fn init(mcon: &mut MemoryController) {
     use x86_64::VirtualAddress;
 
-    let df_stack = mcon.allocate_stack(1)
+    let df_stack = mcon.allocate_stack(4)
         .expect("Could not allocate stack for double fault handler.");
 
     let tss = TSS.call_once(|| {
@@ -67,10 +67,8 @@ extern "x86-interrupt" fn bp_handler(stack: &mut ExceptionStackFrame) {
 extern "x86-interrupt" fn df_handler(stack: &mut ExceptionStackFrame, _: u64) {
     log!(Level::Warn, "Caught exception: Double Fault");
     log!(Level::Warn, "Printing stack frame at point of exception:");
-    // TODO: Find out why log produces shit here.
-    // log!(Level::Warn, "{:#?}", stack);
-    println!("{:#?}", stack);
-    loop {}
+    log!(Level::Warn, "{:#?}", stack);
+    panic!("Encountered handled double fault exception.");
 }
 
 extern "x86-interrupt" fn gp_handler(stack: &mut ExceptionStackFrame, code: u64) {

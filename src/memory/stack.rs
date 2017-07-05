@@ -1,5 +1,6 @@
 use memory::frame;
-use memory::paging::{ActiveTable, Page, PageIter, WRITABLE};
+use memory::paging::{ActiveTable, Page, PageIter, PRESENT, WRITABLE};
+use util::log::{Level, Logger};
 
 pub struct Stack {
     top: usize,
@@ -8,10 +9,8 @@ pub struct Stack {
 
 impl Stack {
     pub fn new(top: usize, bottom: usize) -> Stack {
-        assert!(
-            top > bottom,
-            "Impossible to create stack with top lower than bottom."
-        );
+        assert!(top > bottom,
+                "Impossible to create stack with top lower than bottom.");
         Stack {
             top: top,
             bottom: bottom,
@@ -36,14 +35,12 @@ impl StackAllocator {
         StackAllocator { range: range }
     }
 
-    pub fn allocate<A>(
-        &mut self,
-        active_table: &mut ActiveTable,
-        allocator: &mut A,
-        pages: usize,
-    ) -> Option<Stack>
-    where
-        A: frame::Allocator,
+    pub fn allocate<A>(&mut self,
+                       active_table: &mut ActiveTable,
+                       allocator: &mut A,
+                       pages: usize)
+                       -> Option<Stack>
+        where A: frame::Allocator
     {
         if pages == 0 {
             return None;
@@ -59,12 +56,18 @@ impl StackAllocator {
             range.nth(pages - 2)
         };
 
+
         match (guard, start, end) {
             (Some(_), Some(start), Some(end)) => {
                 self.range = range;
 
+                log!(Level::Info,
+                     "Mapping new stack for double fault from {:#x} to {:#x}",
+                     start.base_addr(),
+                     end.base_addr() + Page::SIZE - 1);
+
                 for page in Page::range(start, end) {
-                    active_table.map(page, WRITABLE, allocator);
+                    active_table.map(page, PRESENT | WRITABLE, allocator);
                 }
 
                 let top = end.base_addr() + Page::SIZE;
