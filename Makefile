@@ -11,7 +11,7 @@ assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
 	build/arch/$(arch)/%.o, $(assembly_source_files))
 
 target ?= $(arch)-unknown-linux-gnu
-os := target/$(target)/debug/libzinc_os.a
+os := target/$(target)/debug/libmicro.a
 
 qemu_debug := qemu.log
 

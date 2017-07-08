@@ -44,12 +44,6 @@ pub extern "C" fn kmain(mb_addr: usize) {
     log!(Level::Info, "Enabling interrupt handlers...");
     interrupt::init(&mut mcon);
 
-    x86_64::instructions::interrupts::int3();
-
-    unsafe {
-        *(0xdeadbeef as *mut u8) = 0x88;
-    }
-
     panic!("Did not crash!");
 }
 

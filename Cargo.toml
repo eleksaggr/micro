@@ -1,6 +1,6 @@
 [package]
 authors = ["Alex Egger <alex.egger96@gmail.com>"]
-name = "zinc-os"
+name = "micro"
 version = "0.1.0"
 
 [lib]
