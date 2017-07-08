@@ -14,16 +14,10 @@ pub struct Frame {
 impl Frame {
     pub const SIZE: usize = 4096; //4KB
 
-    /// Returns the Frame containing the address given.
-    ///
-    /// # Arguments
-    ///
-    /// * `addr` - The address the Frame shall contain.
     pub fn containing(addr: usize) -> Frame {
         Frame { id: addr / Frame::SIZE }
     }
 
-    /// Returns the first address of the memory space the Frame represents.
     pub fn base(&self) -> usize {
         self.id * Frame::SIZE
     }
