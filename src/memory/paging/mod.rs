@@ -79,11 +79,7 @@ impl Iterator for PageIter {
     }
 }
 
-pub fn remap_kernel<A>(
-    allocator: &mut A,
-    info: &BootInformation,
-    reserved: (usize, usize),
-) -> ActiveTable
+pub fn remap_kernel<A>(allocator: &mut A, info: &BootInformation) -> ActiveTable
 where
     A: frame::Allocator,
 {
@@ -105,23 +101,16 @@ where
 
             assert!(
                 section.start_address() % Page::SIZE == 0,
-                "Sections need to be aligned"
+                "Sections need to be aligned to the page size."
             );
-            let flags = Flags::from_elf(section);
 
+            let flags = Flags::from_elf(section);
             let start = Frame::containing(section.start_address());
             let end = Frame::containing(section.end_address() - 1);
 
             for frame in Frame::range(start, end) {
                 mapper.map_id(frame, flags, allocator);
             }
-        }
-
-        for frame in Frame::range(
-            Frame::containing(reserved.0),
-            Frame::containing(reserved.0 + reserved.1),
-        ) {
-            mapper.map_id(frame, PRESENT | WRITABLE, allocator);
         }
 
         // Identity map the VGA buffer.

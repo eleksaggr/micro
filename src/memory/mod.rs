@@ -2,7 +2,7 @@ pub use memory::stack::Stack;
 pub use memory::paging::remap_kernel;
 
 use multiboot2::BootInformation;
-use self::frame::{BitmapAllocator, AreaAllocator};
+use self::frame::{Frame, BitmapAllocator, AreaAllocator};
 use self::paging::ActiveTable;
 use util::log::{Logger, Level};
 
@@ -59,13 +59,15 @@ pub fn init(info: &BootInformation) -> MemoryController {
         mb_end
     );
 
+    // Use a simpler AreaAllocator to get the frames the BitmapAllocator needs to store the
+    // bitmaps.
     let mut pre_allocator = AreaAllocator::new(
         (kernel_start as usize, kernel_end as usize),
         (mb_start as usize, mb_end as usize),
         mmtag.memory_areas(),
     );
 
-
+    // Find the total memory size.
     let mut memory_size = 0;
     for area in mmtag.memory_areas() {
         memory_size += area.length;
@@ -79,7 +81,16 @@ pub fn init(info: &BootInformation) -> MemoryController {
     let mut allocator = BitmapAllocator::new((memory_size as usize), &mut pre_allocator);
     let reserved = allocator.used();
 
-    let mut table = paging::remap_kernel(&mut allocator, info, reserved);
+    // Remap the kernel.
+    let mut table = paging::remap_kernel(&mut allocator, info);
+
+    // Identity map the frames needed by the allocator.
+    for frame in Frame::range(
+        Frame::containing(reserved.0),
+        Frame::containing(reserved.0 + reserved.1),
+    ) {
+        table.map_id(frame, paging::WRITABLE, &mut allocator);
+    }
 
     use self::paging::Page;
     use buddy::{BASE, SIZE};

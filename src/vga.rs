@@ -1,6 +1,6 @@
 use core::fmt;
 use core::ptr::Unique;
-use spin::{Mutex, Once};
+use spin::Mutex;
 use volatile::Volatile;
 
 macro_rules! print {
@@ -50,7 +50,8 @@ pub enum Color {
 }
 
 impl Color {
-    /// Returns the `Color` associated with the given index.
+    /// Returns the `Color` associated with the given index. These values can be found
+    /// [here](wiki.osdev.org/Text_UI#Colours).
     fn with(index: u8) -> Color {
         match index {
             0 => Color::Black,
@@ -94,18 +95,27 @@ impl ColorCode {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+/// A representation of a character together with its foreground and background colors.
 struct VGAChar {
     character: u8,
     color: ColorCode,
 }
 
+///
 struct Buffer {
     chars: [[Volatile<VGAChar>; BUFFER_WIDTH]; BUFFER_HEIGHT],
 }
 
+/// An interface dedicated to writing to the [VGA text
+/// buffer](https://en.wikipedia.org/wiki/VGA-compatible_text_mode#Text_buffer) located in memory
+/// at the phyiscal memory address `0xB8000`. The `Writer` is the only owner of the memory
+/// location, making it impossible to have multiple of them concurrently.
 pub struct Writer {
+    /// The column the `Writer` will write the next [`VGAChar`](struct.VGAChar.html) to.
     column: usize,
+    /// The [`ColorCode`](struct.ColorCode.html) that specifies the colors for the next [`VGAChar`](struct.VGAChar.html).
     color: ColorCode,
+    /// A `Unique` pointer to the underlying [`Buffer`](struct.Buffer.html).
     buffer: Unique<Buffer>,
 }
 
@@ -130,6 +140,10 @@ impl Writer {
         }
     }
 
+    /// Writes a byte to the VGA buffer at the current position.
+    ///
+    /// The special character `\n` is interpreted as a line break,
+    /// and results in a call to [`Writer::shift()`](struct.Writer.html#method.shift)
     pub fn write_byte(&mut self, byte: u8) {
         match byte {
             b'\n' => self.shift(),
@@ -153,7 +167,7 @@ impl Writer {
     }
 
 
-    /// Returns the underlying buffer of the `Writer`.
+    /// Returns a mutable reference to the underlying buffer of the `Writer`.
     ///
     /// # Examples
     ///
@@ -188,6 +202,14 @@ impl Writer {
         self.column = 0;
     }
 
+    /// Clears the specified row, by overwriting it with SPACE(ASCII: 0x20) characters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut w: Writer = Writer::new(Color::White, Color::Black);
+    /// w.clear_row(0);
+    /// ```
     fn clear_row(&mut self, row: usize) {
         let blank = VGAChar {
             character: b' ',
@@ -196,6 +218,37 @@ impl Writer {
         for col in 0..BUFFER_WIDTH {
             self.buffer().chars[row][col].write(blank);
         }
+    }
+
+    /// Sets the colors the `Writer` will use for future writing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut w: Writer = Writer::new(Color::White, Color::Black);
+    /// w.set_color(Color::Red, Color::Green);
+    /// ```
+    pub fn set_colors(&mut self, foreground: Color, background: Color) {
+        self.color = ColorCode::new(foreground, background);
+    }
+
+    /// Returns the currently used colors as a tuple,
+    /// with the first element being the foreground and
+    /// the second the background.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut w: Writer = Writer::new(Color::White, Color::Black);
+    /// let colors = w.colors();
+    /// assert_eq!(Color::White, colors.0);
+    /// assert_eq!(Color::Black, colors.1);
+    /// ```
+    pub fn colors(&self) -> (Color, Color) {
+        (
+            Color::with(self.color.0 >> 4),
+            Color::with(self.color.0 & 0xF),
+        )
     }
 }
 

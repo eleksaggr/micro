@@ -5,11 +5,15 @@ use memory::paging::Page;
 use memory::paging::mapper::Mapper;
 use multiboot2::ElfSection;
 
+/// A mutable reference to the current P4 table.
 pub const P4: *mut Table<Level4> = 0xffff_ffff_ffff_f000 as *mut _;
 
 // This should be an associated const, but cannot be used in the array defintion.
+/// The amount of entries one table has.
 const ENTRIES: usize = 512;
 
+/// A representation of a paging table that holds [`ENTRIES`](constant.ENTRIES.html) amount of
+/// [`Entry`](struct.Entry.html) objects.
 pub struct Table<L: Level> {
     entries: [Entry; ENTRIES],
     level: PhantomData<L>,
@@ -19,6 +23,13 @@ impl<L> Table<L>
 where
     L: Level,
 {
+    /// Resets the table by putting all entries to 0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// t.reset();
+    /// ```
     pub fn reset(&mut self) {
         for entry in self.entries.iter_mut() {
             entry.free();
@@ -150,27 +161,52 @@ impl Flags {
     }
 }
 
+/// An entry in a page table.
 pub struct Entry(u64);
 
 impl Entry {
+    /// Sets the [`Entry`](struct.Entry.html) to 0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// e.free();
+    /// ```
     pub fn free(&mut self) {
         self.0 = 0;
     }
 
+    /// Returns whether an [`Entry`](struct.Entry.html) is free or used.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let free = e.is_free();
+    /// assert_eq!(free, false);
+    /// ```
     pub fn is_free(&self) -> bool {
         self.0 == 0
     }
 
+    /// Returns the flags that are set for the [`Entry`](struct.Entry.html).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// e.flags();
+    /// ```
     pub fn flags(&self) -> Flags {
         Flags::from_bits_truncate(self.0)
     }
 
-
+    /// Sets an entry to the given [`Frame`](../../frame/struct.Frame.html)
     pub fn set(&mut self, frame: Frame, flags: Flags) {
         assert!(frame.base() & !0x000f_ffff_ffff_f000 == 0);
         self.0 = (frame.base() as u64) | flags.bits();
     }
 
+    /// Returns the [`Frame`](../../frame/struct.Frame.html) the [`Entry`](struct.Entry.html)
+    /// points to.
     pub fn frame(&self) -> Option<Frame> {
         if self.flags().contains(PRESENT) {
             Some(Frame::containing(self.0 as usize & 0x000f_ffff_ffff_f000))
@@ -180,7 +216,9 @@ impl Entry {
     }
 }
 
+/// The currently active table.
 pub struct ActiveTable {
+    /// The `Mapper` the table uses.
     mapper: Mapper,
 }
 
@@ -199,10 +237,21 @@ impl DerefMut for ActiveTable {
 }
 
 impl ActiveTable {
+    /// Constructs a new `ActiveTable`.
+    ///
+    /// # Safety
+    ///
+    /// See [`Mapper::new()`](../mapper/struct.Mapper.html#method.new).
     pub unsafe fn new() -> ActiveTable {
         ActiveTable { mapper: Mapper::new() }
     }
 
+    /// Execute the given closure of the form `FnOnce(&mut Mapper)` on the given `InactiveTable`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// ```
     pub fn with<F>(&mut self, table: &mut InactiveTable, page: &mut TempPage, f: F)
     where
         F: FnOnce(&mut Mapper),
@@ -215,7 +264,7 @@ impl ActiveTable {
 
             let p4 = page.map_table(backup.clone(), self);
 
-            self.get_mut()[511].set(table.frame.clone(), PRESENT | WRITABLE);
+            self.table_mut()[511].set(table.frame.clone(), PRESENT | WRITABLE);
             tlb::flush_all();
 
             f(self);
@@ -227,6 +276,8 @@ impl ActiveTable {
         page.unmap(self);
     }
 
+    /// Switches the active table to the given `InactiveTable` and returns the currently active
+    /// table as an `InactiveTable`.
     pub fn switch(&mut self, table: InactiveTable) -> InactiveTable {
         use x86_64::PhysicalAddress;
         use x86_64::registers::control_regs;

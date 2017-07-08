@@ -59,8 +59,8 @@ extern "C" fn eh_personality() {}
 
 #[lang = "panic_fmt"]
 #[no_mangle]
-/// Prints which file and in which line a panic occured, together with the
-/// corresponding message.
+/// Prints information about a panic that occured, including the filename, line number and a
+/// message.
 extern "C" fn panic_fmt(fmt: fmt::Arguments, file: &'static str, line: u32) -> ! {
     log!(
         util::log::Level::Error,

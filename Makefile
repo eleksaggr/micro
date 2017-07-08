@@ -1,4 +1,4 @@
-name := zinc
+name := micro
 
 arch ?= x86_64
 kernel := build/kernel-$(arch).bin
