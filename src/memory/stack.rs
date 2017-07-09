@@ -68,8 +68,8 @@ impl StackAllocator {
                     active_table.map(page, PRESENT | WRITABLE, allocator);
                 }
 
-                let top = end.base_addr() + Page::SIZE;
-                Some(Stack::new(top, start.base_addr()))
+                let top = end.base() + Page::SIZE;
+                Some(Stack::new(top, start.base()))
             }
             _ => None,
         }

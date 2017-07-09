@@ -327,7 +327,7 @@ impl TempPage {
 
     pub fn map(&mut self, frame: Frame, table: &mut ActiveTable) -> usize {
         table.map_to(self.page, frame, WRITABLE, &mut self.allocator);
-        self.page.base_addr()
+        self.page.base()
     }
 
     pub fn map_table(&mut self, frame: Frame, table: &mut ActiveTable) -> &mut Table<Level1> {

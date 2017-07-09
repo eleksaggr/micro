@@ -157,7 +157,7 @@ impl Mapper {
     where
         A: frame::Allocator,
     {
-        assert!(Mapper::translate(page.base_addr()).is_some());
+        assert!(Mapper::translate(page.base()).is_some());
 
         let p1 = self.table_mut()
             .next_mut(page.p4_index())
@@ -170,7 +170,7 @@ impl Mapper {
 
         use x86_64::instructions::tlb;
         use x86_64::VirtualAddress;
-        tlb::flush(VirtualAddress(page.base_addr()));
+        tlb::flush(VirtualAddress(page.base()));
 
         // allocator.deallocate(frame);
     }

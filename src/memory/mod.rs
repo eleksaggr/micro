@@ -103,8 +103,8 @@ pub fn init(info: &BootInformation) -> MemoryController {
     log!(
         Level::Info,
         "Heap spans memory region from {:#x} to {:#x}",
-        heap_start_page.base_addr(),
-        heap_end_page.base_addr() + Page::SIZE - 1
+        heap_start_page.base(),
+        heap_end_page.base() + Page::SIZE - 1
     );
 
     let stack_allocator = {

@@ -26,8 +26,10 @@ extern crate x86_64;
 mod vga;
 #[macro_use]
 mod util;
+mod sync;
 mod memory;
 mod interrupt;
+mod error;
 
 use core::fmt;
 use util::log::{Level, Logger};

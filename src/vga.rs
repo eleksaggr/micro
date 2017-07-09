@@ -1,6 +1,6 @@
 use core::fmt;
 use core::ptr::Unique;
-use spin::Mutex;
+use sync::Mutex;
 use volatile::Volatile;
 
 macro_rules! print {
@@ -17,7 +17,6 @@ macro_rules! println {
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer::new(Color::White, Color::Black));
 }
-
 
 /// The width of the VGA buffer in characters.
 const BUFFER_WIDTH: usize = 80;
@@ -264,4 +263,5 @@ impl fmt::Write for Writer {
 pub fn print(args: fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
+
 }

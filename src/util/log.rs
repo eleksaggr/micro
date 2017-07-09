@@ -1,5 +1,6 @@
 use core::fmt;
-use spin::Mutex;
+use sync::Mutex;
+use vga::{Color, WRITER};
 
 macro_rules! log {
     ($lvl:expr, $($arg:tt)+) => ({
@@ -33,30 +34,18 @@ impl PrintLogger {
 impl Logger for PrintLogger {
     fn log(&mut self, level: Level, args: fmt::Arguments) {
         if level >= self.level {
-            // let backup = vga::WRITER.lock().get_color();
-            // match level {
-            //     Level::Info => {
-            //         vga::WRITER
-            //             .lock()
-            //             .set_color(vga::Color::White, vga::Color::Black)
-            //     }
-            //     Level::Warn => {
-            //         vga::WRITER
-            //             .lock()
-            //             .set_color(vga::Color::Yellow, vga::Color::Black)
-            //     }
-            //     Level::Error => {
-            //         vga::WRITER
-            //             .lock()
-            //             .set_color(vga::Color::Red, vga::Color::Black)
-            //     }
-            // }
+            let colors = {
+                let mut writer = WRITER.lock();
+                match level {
+                    Level::Info => writer.set_colors(Color::White, Color::Black),
+                    Level::Warn => writer.set_colors(Color::Yellow, Color::Black),
+                    Level::Error => writer.set_colors(Color::Red, Color::Black),
+                }
+                writer.colors()
+            };
 
             println!("[{}] {}", level, args);
-            // vga::WRITER
-            //     .lock()
-            //     .set_color(backup.get_fg(), backup.get_bg());
-
+            WRITER.lock().set_colors(colors.0, colors.1);
         }
     }
 }

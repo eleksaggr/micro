@@ -26,7 +26,7 @@ impl Page {
         Page { id: addr / Page::SIZE }
     }
 
-    pub fn base_addr(&self) -> usize {
+    pub fn base(&self) -> usize {
         self.id * Page::SIZE
     }
 
