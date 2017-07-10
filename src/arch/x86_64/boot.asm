@@ -1,9 +1,9 @@
 global _start
-bits 32
 
 extern _start64
 
 section .text
+bits 32
 ; Check if the bootloader is Multiboot compliant. This will throw an error with code 1, if not compliant.
 _check_multiboot:
 	; Compare with the bootloader supplied magic number.
@@ -20,12 +20,13 @@ _check_cpuid:
 	pushfd 
 	pop eax
 
+        ; Backup original flags in ECX
 	mov ecx, eax
 
 	; Flip the ID bit (Bit 21)
 	xor eax, 1 << 21 
 
-	; Copy EAX to FLAGS
+	; Push EAX back to FLAGS
 	push eax
 	popfd
 
@@ -62,7 +63,6 @@ _check_long_mode:
 	jmp _error
 
 _setup_paging:
-
         ; Recursively map the P4 table to its own last entry.
         mov eax, p4_table
         or eax, 0b11
@@ -86,7 +86,6 @@ _setup_paging:
 	inc ecx
 	cmp ecx, 512
 	jne .map_p2_table
-
 	ret
 
 _enable_paging:
@@ -131,7 +130,7 @@ _setup_SSE:
 ; The kernel entry point.
 _start:
 	; Setup the stack pointer.
-	mov esp, stack_top 
+	mov esp, top 
 
 	; Move Multiboot pointer to EDI
 	mov edi, ebx
@@ -179,6 +178,7 @@ GDT64:
 	dq GDT64
 
 section .bss
+; Page tables
 align 4096
 p4_table:
 	resb 4096
@@ -186,7 +186,8 @@ p3_table:
 	resb 4096
 p2_table:
 	resb 4096
-stack_bottom:
+; Stack
+bottom:
 	; Reserve 16KB for the stack.
 	resb 4096 * 4
-stack_top:
+top:

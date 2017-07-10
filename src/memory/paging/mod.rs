@@ -116,6 +116,9 @@ where
         // Identity map the VGA buffer.
         mapper.map_id(Frame::containing(0xb8000), WRITABLE, allocator);
 
+        // Identity map the APIC registers.
+        mapper.map_id(Frame::containing(0xFEE00000), WRITABLE, allocator);
+
         // Identity map the Multiboot info structure.
         let mb_start = Frame::containing(info.start_address());
         let mb_end = Frame::containing(info.end_address() - 1);

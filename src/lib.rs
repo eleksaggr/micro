@@ -1,5 +1,3 @@
-//! The kernel of the Zinc operating system.
-
 #![feature(abi_x86_interrupt)]
 #![feature(alloc)]
 #![feature(associated_consts)]
@@ -7,8 +5,6 @@
 #![feature(lang_items)]
 #![feature(unique)]
 #![no_std]
-
-#![deny(missing_docs)]
 
 extern crate alloc;
 #[macro_use]
